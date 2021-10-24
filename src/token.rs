@@ -1,7 +1,15 @@
 use std::fmt;
 use std::result;
+use std::cmp::PartialEq;
+use std::collections::HashMap;
+use crate::token::TokenType::*;
 
-#[derive(Copy, Clone)]
+pub struct Token {
+    pub typ: TokenType,
+    pub literal: String,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum TokenType {
     ILLEGAL, // "ILLEGAL"
     EOF,     // "EOF"
@@ -26,7 +34,6 @@ pub enum TokenType {
 
 impl fmt::Display for TokenType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> result::Result<(), fmt::Error> {
-        use TokenType::*;
         let t = match self {
             ILLEGAL => "ILLEGAL",
             EOF => "EOF",
@@ -45,6 +52,22 @@ impl fmt::Display for TokenType {
         };
         write!(f, "{}", t)
     }
+}
+
+pub fn lookup_ident(ident: &String) -> TokenType {
+    let map = keywords();
+    let keyword = map.get(ident);
+    return  match keyword {
+        None => IDENT,
+        Some(k) => *k,
+    }
+}
+
+fn keywords() -> HashMap<String, TokenType> {
+    let mut keywords: HashMap<String, TokenType> = HashMap::new();
+    keywords.insert(String::from("fn"), FUNCTION);
+    keywords.insert(String::from("let"), LET);
+    keywords
 }
 
 #[cfg(test)]
