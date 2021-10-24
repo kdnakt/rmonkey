@@ -108,9 +108,14 @@ mod tests {
     use crate::token::TokenType::*;
     #[test]
     fn it_gets_next_token() {
-        let input = "\
-            =+(){},;\
-            let five = 5;\
+        let input = "
+            =+(){},;
+            let five = 5;
+            let ten = 10;
+            let add = fn(x, y) {
+              x + y;
+            };
+            let result = add(five, ten);
         ".to_string();
         let mut l = Lexer::new(input);
         for &(expected_token, expected_literal) in [
@@ -126,6 +131,37 @@ mod tests {
             (IDENT, "five"),
             (ASSIGN, "="),
             (INT, "5"),
+            (SEMICOLON, ";"),
+            (LET, "let"),
+            (IDENT, "ten"),
+            (ASSIGN, "="),
+            (INT, "10"),
+            (SEMICOLON, ";"),
+            (LET, "let"),
+            (IDENT, "add"),
+            (ASSIGN, "="),
+            (FUNCTION, "fn"),
+            (LPAREN, "("),
+            (IDENT, "x"),
+            (COMMA, ","),
+            (IDENT, "y"),
+            (RPAREN, ")"),
+            (LBRACE, "{"),
+            (IDENT, "x"),
+            (PLUS, "+"),
+            (IDENT, "y"),
+            (SEMICOLON, ";"),
+            (RBRACE, "}"),
+            (SEMICOLON, ";"),
+            (LET, "let"),
+            (IDENT, "result"),
+            (ASSIGN, "="),
+            (IDENT, "add"),
+            (LPAREN, "("),
+            (IDENT, "five"),
+            (COMMA, ","),
+            (IDENT, "ten"),
+            (RPAREN, ")"),
             (SEMICOLON, ";"),
             (EOF, ""),
         ].iter() {
