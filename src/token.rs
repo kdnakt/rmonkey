@@ -2,7 +2,7 @@ use std::fmt;
 use std::result;
 
 #[derive(Copy, Clone)]
-pub enum Token {
+pub enum TokenType {
     ILLEGAL, // "ILLEGAL"
     EOF,     // "EOF"
 
@@ -24,9 +24,9 @@ pub enum Token {
     LET,      // "LET"
 }
 
-impl fmt::Display for Token {
+impl fmt::Display for TokenType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> result::Result<(), fmt::Error> {
-        use Token::*;
+        use TokenType::*;
         let t = match self {
             ILLEGAL => "ILLEGAL",
             EOF => "EOF",
@@ -49,7 +49,7 @@ impl fmt::Display for Token {
 
 #[cfg(test)]
 mod tests {
-    use super::Token::*;
+    use super::TokenType::*;
     #[test]
     fn it_displays_token() {
         for &(tok, lit) in [

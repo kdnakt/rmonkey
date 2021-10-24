@@ -1,5 +1,5 @@
 mod token;
-use token::Token::*;
+use token::TokenType::*;
 
 fn main() {
     println!("Hello, world! {}", EOF);
