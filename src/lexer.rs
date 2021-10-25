@@ -40,7 +40,31 @@ impl Lexer {
         let tok = match self.ch {
             0 => Token { typ: EOF, literal: "".to_string() },
             _ => match ch {
-                '=' => new_token(ASSIGN, ch),
+                '=' => {
+                    if '=' == self.peek_char() as char {
+                        self.read_char();
+                        let mut literal = String::from(ch);
+                        literal.push(self.ch as char);
+                        Token { typ: EQ, literal: literal}
+                    } else {
+                        new_token(ASSIGN, ch)
+                    }
+                },
+                '-' => new_token(MINUS, ch),
+                '!' => {
+                    if '=' == self.peek_char() as char {
+                        self.read_char();
+                        let mut literal = String::from(ch);
+                        literal.push(self.ch as char);
+                        Token { typ: NOTEQ, literal: literal}
+                    } else {
+                        new_token(BANG, ch)
+                    }
+                },
+                '/' => new_token(SLASH, ch),
+                '*' => new_token(ASTERISK, ch),
+                '<' => new_token(LT, ch),
+                '>' => new_token(GT, ch),
                 ';' => new_token(SEMICOLON, ch),
                 '(' => new_token(LPAREN, ch),
                 ')' => new_token(RPAREN, ch),
@@ -57,7 +81,7 @@ impl Lexer {
                         let number = self.read_number();
                         return Token { typ: INT, literal: number }
                     } else {
-                        return Token { typ: ILLEGAL, literal: ch.to_string() }
+                        Token { typ: ILLEGAL, literal: ch.to_string() }
                     }
                 }
             }
@@ -67,12 +91,7 @@ impl Lexer {
     }
 
     fn read_char(&mut self) {
-        self.ch = if self.read_pos >= self.input.len().try_into().unwrap() {
-            0
-        } else {
-            let mut bytes = self.input.bytes();
-            bytes.nth(self.read_pos).unwrap()
-        };
+        self.ch = self.peek_char();
         self.pos = self.read_pos;
         self.read_pos += 1;
     }
@@ -100,6 +119,15 @@ impl Lexer {
             self.read_char();
         }
     }
+
+    fn peek_char(&self) -> u8 {
+        if self.read_pos >= self.input.len().try_into().unwrap() {
+            0
+        } else {
+            let mut bytes = self.input.bytes();
+            bytes.nth(self.read_pos).unwrap()
+        }
+    }
 }
 
 #[cfg(test)]
@@ -116,6 +144,15 @@ mod tests {
               x + y;
             };
             let result = add(five, ten);
+            !-/*5;
+            5 < 10 > 5;
+            if (5 < 10) {
+              return true;
+            } else {
+              return false;
+            }
+            10 == 10;
+            10 != 9;
         ".to_string();
         let mut l = Lexer::new(input);
         for &(expected_token, expected_literal) in [
@@ -162,6 +199,43 @@ mod tests {
             (COMMA, ","),
             (IDENT, "ten"),
             (RPAREN, ")"),
+            (SEMICOLON, ";"),
+            (BANG, "!"),
+            (MINUS, "-"),
+            (SLASH, "/"),
+            (ASTERISK, "*"),
+            (INT, "5"),
+            (SEMICOLON, ";"),
+            (INT, "5"),
+            (LT, "<"),
+            (INT, "10"),
+            (GT, ">"),
+            (INT, "5"),
+            (SEMICOLON, ";"),
+            (IF, "if"),
+            (LPAREN, "("),
+            (INT, "5"),
+            (LT, "<"),
+            (INT, "10"),
+            (RPAREN, ")"),
+            (LBRACE, "{"),
+            (RETURN, "return"),
+            (TRUE, "true"),
+            (SEMICOLON, ";"),
+            (RBRACE, "}"),
+            (ELSE, "else"),
+            (LBRACE, "{"),
+            (RETURN, "return"),
+            (FALSE, "false"),
+            (SEMICOLON, ";"),
+            (RBRACE, "}"),
+            (INT, "10"),
+            (EQ, "=="),
+            (INT, "10"),
+            (SEMICOLON, ";"),
+            (INT, "10"),
+            (NOTEQ, "!="),
+            (INT, "9"),
             (SEMICOLON, ";"),
             (EOF, ""),
         ].iter() {
