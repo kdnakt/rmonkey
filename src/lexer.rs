@@ -1,8 +1,10 @@
-use crate::token;
-use crate::token::TokenType;
-use crate::token::TokenType::*;
-use crate::token::Token;
+// Std
 use std::convert::TryInto;
+
+// Internal
+use crate::{
+    token::*,
+};
 
 pub struct Lexer {
     input: String,

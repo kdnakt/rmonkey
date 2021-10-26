@@ -1,8 +1,10 @@
-use std::fmt;
-use std::result;
-use std::cmp::PartialEq;
-use std::collections::HashMap;
-use crate::token::TokenType::*;
+// Std
+use std::{
+    fmt,
+    result,
+    cmp::PartialEq,
+    collections::HashMap,
+};
 
 pub struct Token {
     pub typ: TokenType,
