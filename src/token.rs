@@ -6,6 +6,12 @@ use std::{
     collections::HashMap,
 };
 
+// Internal
+use crate::{
+    token::TokenType::*,
+};
+
+#[derive(Debug)]
 pub struct Token {
     pub typ: TokenType,
     pub literal: String,

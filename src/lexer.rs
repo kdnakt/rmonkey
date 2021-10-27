@@ -3,7 +3,9 @@ use std::convert::TryInto;
 
 // Internal
 use crate::{
+    token,
     token::*,
+    token::TokenType::*
 };
 
 pub struct Lexer {
