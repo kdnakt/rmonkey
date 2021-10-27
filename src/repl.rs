@@ -12,11 +12,11 @@ pub fn start() {
         println!(">> ");
         let mut line = String::new();
         io::stdin().read_line(&mut line).expect("Failed to read line.");
-        let mut l = lexer::Lexer::new(line);
+        let mut l = Lexer::new(line);
 
         let mut tok = l.next_token();
-        while tok != EOF {
-            println!("{}", tok);
+        while tok.typ != EOF {
+            println!("{:?}", tok);
             tok = l.next_token();
         }
     }
