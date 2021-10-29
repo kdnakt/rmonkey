@@ -1,5 +1,7 @@
+mod ast;
 mod lexer;
 mod token;
+mod parser;
 mod repl;
 
 fn main() {
