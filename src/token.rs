@@ -11,11 +11,16 @@ use crate::{
     token::TokenType::*,
 };
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Token {
     pub typ: TokenType,
     pub literal: String,
 }
+
+// #[derive(Copy, Clone)]
+// pub struct TokenWrapper<'a> {
+//     pub token_ref: &'a Token,
+// }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum TokenType {
