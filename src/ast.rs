@@ -1,5 +1,7 @@
 // Internal
 use crate::{
+    ast::StatementNode::*,
+    ast::ExpressionNode::*,
     token::Token,
 };
 
@@ -7,38 +9,37 @@ pub trait Node {
     fn token_literal(&self) -> String;
 }
 
-pub trait Expression: Node {}
-pub trait Statement: Node {}
+pub enum ExpressionNode {
+    Identifier {
+        token: Token,
+        value: String
+    },
+}
+
+pub enum StatementNode {
+    LetStatement {
+        token: Token,
+        name: ExpressionNode, //Identifier,
+        //value: ExpressionNode
+    },
+}
 
 pub struct Program {
-    pub statements: Vec<Box<dyn Statement>>,
+    pub statements: Vec<StatementNode>,
 }
 
-#[derive(Clone, Debug)]
-pub struct LetStatement {
-    pub token: Token,
-    pub name: Identifier,
-    //value: dyn Expression,
-}
-
-impl Node for LetStatement {
+impl Node for StatementNode {
     fn token_literal(&self) -> String {
-        format!("{}", self.token.literal)
+        match self {
+            LetStatement{token, name} => format!("{}", token.literal),
+        }
     }
 }
 
-impl Statement for LetStatement {}
-
-#[derive(Clone, Debug)]
-pub struct Identifier {
-    pub token: Token,
-    pub value: String,
-}
-
-impl Node for Identifier {
+impl Node for ExpressionNode {
     fn token_literal(&self) -> String {
-        format!("{}", self.token.literal)
+        match self {
+            Identifier{token, value} => format!("{}", token.literal),
+        }
     }
 }
-
-impl Expression for Identifier {}

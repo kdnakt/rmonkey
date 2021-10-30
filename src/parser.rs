@@ -1,6 +1,8 @@
 // Internal
 use crate::{
     ast::*,
+    ast::StatementNode::*,
+    ast::ExpressionNode::*,
     lexer::Lexer,
     token::*,
     token::TokenType::*,
@@ -38,18 +40,14 @@ impl Parser {
         Program { statements: statements }
     }
 
-    fn parse_statement(&mut self) -> Option<Box<dyn Statement>> {
-        let stmt = match self.cur_token.typ {
+    fn parse_statement(&mut self) -> Option<StatementNode> {
+        match self.cur_token.typ {
             LET => self.parse_let_statement(),
             _ => None,
-        };
-        match stmt {
-            None => None,
-            Some(s) => Some(Box::new(s)),
         }
     }
 
-    fn parse_let_statement(&mut self) -> Option<LetStatement> {
+    fn parse_let_statement(&mut self) -> Option<StatementNode> {
         let cur_token = self.cur_token.clone();
         if !self.expect_peek(IDENT) {
             return None
@@ -104,6 +102,8 @@ mod tests {
     use super::Parser;
     use crate::lexer::Lexer;
     use crate::ast::*;
+    use crate::ast::StatementNode::*;
+    use crate::ast::ExpressionNode::*;
     #[test]
     fn it_parses_let_statements() {
         let input = "
@@ -119,7 +119,7 @@ mod tests {
         for &(index, expected_identifier) in [
             (0, "x"),
             (1, "y"),
-            (2, "fooba")
+            (2, "foobar")
         ].iter() {
             let stmt = program.statements.get(index);
             test_let_statement(stmt.unwrap(), expected_identifier.to_string());
@@ -128,17 +128,20 @@ mod tests {
         assert_eq!(3, program.statements.len());
     }
 
-    fn test_let_statement(s: &Box<dyn Statement>, name: String) {
-        let stmt = s.as_ref();
-        assert_eq!("let", stmt.token_literal());
+    fn test_let_statement(s: &StatementNode, expected: String) {
+        assert_eq!("let", s.token_literal());
 
-        // let anyStmt = stmt.as_any();
-        // let letStmt: &LetStatement = match anyStmt.downcast_ref::<LetStatement>() {
-        //     Some(s) => s,
-        //     None => panic!("stmt not &ast::LetStatement, got {:?}", stmt.token_literal()),
-        // };
-        // assert_eq!(name, letStmt.name.value);
-        // assert_eq!(name, letStmt.name.token.literal);
+        let n = match s {
+            LetStatement{token, name} => name,
+            _ => panic!("stmt not ast::StatementNode::LetStatement, got {}", s.token_literal()),
+        };
+        match n {
+            Identifier{token, value} => {
+                assert_eq!(expected, value.to_string());
+                assert_eq!(expected, token.literal.to_string());
+            },
+            _ => panic!("name not ast::ExpressionNode::Identifier, got {}", n.token_literal()),
+        };
     }
 
     fn check_parse_errors(p: &Parser) {
