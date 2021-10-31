@@ -22,6 +22,10 @@ pub enum StatementNode {
         name: ExpressionNode, //Identifier,
         //value: ExpressionNode
     },
+    ReturnStatement {
+        token: Token,
+        // retVal: ExpressionNode,
+    },
 }
 
 pub struct Program {
@@ -31,7 +35,8 @@ pub struct Program {
 impl Node for StatementNode {
     fn token_literal(&self) -> String {
         match self {
-            LetStatement{token, name} => format!("{}", token.literal),
+            LetStatement{token, ..} => format!("{}", token.literal),
+            ReturnStatement{token, ..} => format!("{}", token.literal),
         }
     }
 }
@@ -39,7 +44,7 @@ impl Node for StatementNode {
 impl Node for ExpressionNode {
     fn token_literal(&self) -> String {
         match self {
-            Identifier{token, value} => format!("{}", token.literal),
+            Identifier{token, ..} => format!("{}", token.literal),
         }
     }
 }

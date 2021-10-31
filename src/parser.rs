@@ -43,6 +43,7 @@ impl Parser {
     fn parse_statement(&mut self) -> Option<StatementNode> {
         match self.cur_token.typ {
             LET => self.parse_let_statement(),
+            RETURN => self.parse_return_statement(),
             _ => None,
         }
     }
@@ -66,6 +67,17 @@ impl Parser {
         }
 
         return Some(LetStatement { token: cur_token, name: name })
+    }
+
+    fn parse_return_statement(&mut self) -> Option<StatementNode> {
+        let cur_token = self.cur_token.clone();
+
+        self.next_token();
+        while !self.cur_token_is(SEMICOLON) {
+            self.next_token();
+        }
+
+        return Some(ReturnStatement { token: cur_token })
     }
 
     fn cur_token_is(&self, t: TokenType) -> bool {
@@ -116,6 +128,8 @@ mod tests {
         let program = p.parse_program();
         check_parse_errors(&p);
 
+        assert_eq!(3, program.statements.len());
+
         for &(index, expected_identifier) in [
             (0, "x"),
             (1, "y"),
@@ -123,16 +137,14 @@ mod tests {
         ].iter() {
             let stmt = program.statements.get(index);
             test_let_statement(stmt.unwrap(), expected_identifier.to_string());
-        } 
-
-        assert_eq!(3, program.statements.len());
+        }
     }
 
     fn test_let_statement(s: &StatementNode, expected: String) {
         assert_eq!("let", s.token_literal());
 
         let n = match s {
-            LetStatement{token, name} => name,
+            LetStatement{name, ..} => name,
             _ => panic!("stmt not ast::StatementNode::LetStatement, got {}", s.token_literal()),
         };
         match n {
@@ -142,6 +154,30 @@ mod tests {
             },
             _ => panic!("name not ast::ExpressionNode::Identifier, got {}", n.token_literal()),
         };
+    }
+
+    #[test]
+    fn it_parses_return_statements() {
+        let input = "
+            return 5;
+            return 10;
+            return 993322;
+        ".to_string();
+        let l = Lexer::new(input);
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
+        check_parse_errors(&p);
+
+        assert_eq!(3, program.statements.len());
+
+        for stmt in program.statements {
+            match stmt {
+                ReturnStatement{token, ..} => {
+                    assert_eq!("return", token.literal);
+                },
+                _ => panic!("stmt not ast::StatementNode::ReturnStatement, got={}", stmt.token_literal()),
+            }
+        }
     }
 
     fn check_parse_errors(p: &Parser) {
