@@ -40,6 +40,10 @@ impl Parser {
         Program { statements: statements }
     }
 
+    fn parse_expression(&mut self) -> Option<ExpressionNode> {
+        return None
+    }
+
     fn parse_statement(&mut self) -> Option<StatementNode> {
         match self.cur_token.typ {
             LET => self.parse_let_statement(),
@@ -49,7 +53,7 @@ impl Parser {
     }
 
     fn parse_let_statement(&mut self) -> Option<StatementNode> {
-        let cur_token = self.cur_token.clone();
+        let token = self.cur_token.clone();
         if !self.expect_peek(IDENT) {
             return None
         }
@@ -62,22 +66,27 @@ impl Parser {
             return None
         }
 
+        let value = self.parse_expression();
+
         while !self.cur_token_is(SEMICOLON) {
             self.next_token();
         }
 
-        return Some(LetStatement { token: cur_token, name: name })
+        return Some(LetStatement { token, name, value })
     }
 
     fn parse_return_statement(&mut self) -> Option<StatementNode> {
-        let cur_token = self.cur_token.clone();
+        let token = self.cur_token.clone();
 
         self.next_token();
+
+        let return_value = self.parse_expression();
+
         while !self.cur_token_is(SEMICOLON) {
             self.next_token();
         }
 
-        return Some(ReturnStatement { token: cur_token })
+        return Some(ReturnStatement { token, return_value })
     }
 
     fn cur_token_is(&self, t: TokenType) -> bool {
