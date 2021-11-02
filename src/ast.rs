@@ -27,6 +27,10 @@ pub enum StatementNode {
         token: Token,
         return_value: Option<ExpressionNode>,
     },
+    ExpressionStatement {
+        token: Token,
+        expression: Option<ExpressionNode>,
+    },
 }
 
 pub struct Program {
@@ -53,10 +57,12 @@ impl Node for Program {
 
 impl Node for StatementNode {
     fn token_literal(&self) -> String {
-        match self {
-            LetStatement{token, ..} => format!("{}", token.literal),
-            ReturnStatement{token, ..} => format!("{}", token.literal),
-        }
+        let t = match self {
+            LetStatement{token, ..} => token,
+            ReturnStatement{token, ..} => token,
+            ExpressionStatement{token, ..} => token,
+        };
+        format!("{}", t.literal)
     }
 
     fn to_string(&self) -> String {
@@ -77,7 +83,13 @@ impl Node for StatementNode {
                     Some(e) => out.push_str(&e.to_string()),
                     None => (),
                 };
-            }
+            },
+            ExpressionStatement{expression, ..} => {
+                match expression {
+                    Some(e) => return e.to_string(),
+                    None => return "".to_string(),
+                };
+            },
         }
         out.push(';');
         out
