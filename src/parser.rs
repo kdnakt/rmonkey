@@ -189,6 +189,35 @@ mod tests {
         }
     }
 
+    #[test]
+    fn it_parses_identifier_expression() {
+        let input = "foobar;".to_string();
+        let l = Lexer::new(input);
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
+        check_parse_errors(&p);
+
+        assert_eq!(1, program.statements.len());
+        match program.statements.get(0) {
+            Some(s) => match s {
+                ExpressionStatement{expression, ..} => {
+                    match expression {
+                        Some(e) => match e {
+                            Identifier{value, ..} => {
+                                assert_eq!("foobar", value);
+                                assert_eq!("foobar", e.token_literal());
+                            },
+                            _ => panic!("expression is not Identifier, got={}", e.token_literal()),
+                        },
+                        None => panic!("expression is None"),
+                    };
+                },
+                _ => panic!("program.statements[0] is not ast::StatementNode::ExpressionStatement. got={}", s.token_literal()),
+            },
+            None => panic!("program.statements[0] is None"),
+        };
+    }
+
     fn check_parse_errors(p: &Parser) {
         if p.errors.len() != 0 {
             for err in &p.errors {
