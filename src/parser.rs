@@ -1,3 +1,8 @@
+// Std
+use std::{
+    collections::HashMap,
+};
+
 // Internal
 use crate::{
     ast::*,
@@ -6,7 +11,20 @@ use crate::{
     lexer::Lexer,
     token::*,
     token::TokenType::*,
+    parser::Precedence::*,
 };
+
+enum Precedence {
+    LOWEST = 1,
+    EQUALS,
+    LESSGREATER,
+    SUM,
+    PRODUCT,
+}
+
+enum PrefixParseFn {
+    ParseIdentifier,
+}
 
 pub struct Parser {
     l: Lexer,
@@ -40,15 +58,61 @@ impl Parser {
         Program { statements: statements }
     }
 
-    fn parse_expression(&mut self) -> Option<ExpressionNode> {
-        return None
+    fn parse_expression(&mut self, p: Precedence) -> Option<ExpressionNode> {
+        let prefix = self.parse_prefix(self.cur_token.typ);
+        let left_exp = match prefix {
+            Some(p) => Some(p),
+            None => {
+                self.no_prefix_parse_fn_error(self.cur_token.typ);
+                return None;
+            }
+        };
+
+        let precedence = p as i32;
+        while !self.peek_token_is(SEMICOLON) && precedence < (self.peek_precedence() as i32) {
+            // let infix = parse_infix(self.peek_token.typ);
+            // if infix == nil return left_exp;
+
+            self.next_token();
+            // left_exp = infix(left_exp);
+        }
+        return left_exp;
+    }
+
+    fn parse_prefix(&self, t: TokenType) -> Option<ExpressionNode> {
+        match t {
+            Identifier => Some(IdentifierExpression {
+                token: self.cur_token.clone(),
+                value: self.cur_token.literal.to_string(),
+            }),
+            _ => None,
+        }
+    }
+
+    fn peek_precedence(&self) -> Precedence {
+        match self.peek_token.typ {
+            EQ => EQUALS,
+            NOTEQ => EQUALS,
+            LT => LESSGREATER,
+            GT => LESSGREATER,
+            PLUS => SUM,
+            MINUS => SUM,
+            SLASH => PRODUCT,
+            ASTERISK => PRODUCT,
+            _ => LOWEST,
+        }
+    }
+
+    fn no_prefix_parse_fn_error(&mut self, t: TokenType) {
+        let msg = format!("no prefix parse function for {} found", t);
+        self.errors.push(msg);
     }
 
     fn parse_statement(&mut self) -> Option<StatementNode> {
         match self.cur_token.typ {
             LET => self.parse_let_statement(),
             RETURN => self.parse_return_statement(),
-            _ => None,
+            _ => self.parse_expression_statement(),
         }
     }
 
@@ -60,13 +124,13 @@ impl Parser {
 
         let i_token = self.cur_token.clone();
         let i_lit = i_token.literal.clone();
-        let name = Identifier { token: i_token, value: i_lit };
+        let name = IdentifierExpression { token: i_token, value: i_lit };
 
         if !self.expect_peek(ASSIGN) {
             return None
         }
 
-        let value = self.parse_expression();
+        let value = self.parse_expression(LOWEST);
 
         while !self.cur_token_is(SEMICOLON) {
             self.next_token();
@@ -80,13 +144,22 @@ impl Parser {
 
         self.next_token();
 
-        let return_value = self.parse_expression();
+        let return_value = self.parse_expression(LOWEST);
 
         while !self.cur_token_is(SEMICOLON) {
             self.next_token();
         }
 
         return Some(ReturnStatement { token, return_value })
+    }
+
+    fn parse_expression_statement(&mut self) -> Option<StatementNode> {
+        let token = self.cur_token.clone();
+        let expression = self.parse_expression(LOWEST);
+        if self.peek_token_is(SEMICOLON) {
+            self.next_token();
+        }
+        Some(ExpressionStatement { token, expression })
     }
 
     fn cur_token_is(&self, t: TokenType) -> bool {
@@ -157,7 +230,7 @@ mod tests {
             _ => panic!("stmt not ast::StatementNode::LetStatement, got {}", s.token_literal()),
         };
         match n {
-            Identifier{token, value} => {
+            IdentifierExpression{token, value} => {
                 assert_eq!(expected, value.to_string());
                 assert_eq!(expected, token.literal.to_string());
             },
@@ -198,24 +271,22 @@ mod tests {
         check_parse_errors(&p);
 
         assert_eq!(1, program.statements.len());
-        match program.statements.get(0) {
-            Some(s) => match s {
-                ExpressionStatement{expression, ..} => {
-                    match expression {
-                        Some(e) => match e {
-                            Identifier{value, ..} => {
-                                assert_eq!("foobar", value);
-                                assert_eq!("foobar", e.token_literal());
-                            },
-                            _ => panic!("expression is not Identifier, got={}", e.token_literal()),
-                        },
-                        None => panic!("expression is None"),
-                    };
-                },
-                _ => panic!("program.statements[0] is not ast::StatementNode::ExpressionStatement. got={}", s.token_literal()),
-            },
-            None => panic!("program.statements[0] is None"),
-        };
+
+        let stmt = program.statements.get(0);
+        if let Some(ExpressionStatement{expression, ..}) = stmt {
+            if let Some(e) = expression {
+                assert_eq!("foobar", e.token_literal());
+                if let IdentifierExpression{value, ..} = e {
+                    assert_eq!("foobar", value);
+                } else {
+                    panic!("expression is not IdentifierExpression");
+                }
+            } else {
+                panic!("expression is None");
+            }
+        } else {
+            panic!("program.statements[0] is not ExpressionStatement, got={}", stmt.unwrap().token_literal());
+        }
     }
 
     fn check_parse_errors(p: &Parser) {

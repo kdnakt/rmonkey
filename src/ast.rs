@@ -11,7 +11,7 @@ pub trait Node {
 }
 
 pub enum ExpressionNode {
-    Identifier {
+    IdentifierExpression {
         token: Token,
         value: String
     },
@@ -100,14 +100,14 @@ impl Node for StatementNode {
 impl Node for ExpressionNode {
     fn token_literal(&self) -> String {
         match self {
-            Identifier{token, ..} => format!("{}", token.literal),
+            IdentifierExpression{token, ..} => format!("{}", token.literal),
         }
     }
 
     fn to_string(&self) -> String {
         let mut out = String::new();
         match self {
-            Identifier{value, ..} => out.push_str(value),
+            IdentifierExpression{value, ..} => out.push_str(value),
         }
         out
     }
@@ -119,7 +119,7 @@ mod tests {
     use super::{
         Program,
         LetStatement,
-        Identifier,
+        IdentifierExpression,
         Node,
     };
     use crate::token::{
@@ -131,11 +131,11 @@ mod tests {
         let mut statements = Vec::new();
         let let_stmt = LetStatement {
             token: Token { typ: LET, literal: "let".to_string() },
-            name: Identifier {
+            name: IdentifierExpression {
                 token: Token { typ: IDENT, literal: "myVar".to_string() },
                 value: "myVar".to_string(),
             },
-            value: Some(Identifier {
+            value: Some(IdentifierExpression {
                 token: Token { typ: IDENT, literal: "anotherVar".to_string() },
                 value: "anotherVar".to_string(),
             }),
