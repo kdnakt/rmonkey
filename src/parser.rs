@@ -273,20 +273,25 @@ mod tests {
         assert_eq!(1, program.statements.len());
 
         let stmt = program.statements.get(0);
-        if let Some(ExpressionStatement{expression, ..}) = stmt {
-            if let Some(e) = expression {
-                assert_eq!("foobar", e.token_literal());
-                if let IdentifierExpression{value, ..} = e {
-                    assert_eq!("foobar", value);
-                } else {
-                    panic!("expression is not IdentifierExpression");
-                }
-            } else {
-                panic!("expression is None");
-            }
+        let expression = if let Some(ExpressionStatement{expression, ..}) = stmt {
+            expression
         } else {
             panic!("program.statements[0] is not ExpressionStatement, got={}", stmt.unwrap().token_literal());
-        }
+        };
+
+        let e = if let Some(e) = expression {
+            e
+        } else {
+            panic!("expression is None");
+        };
+        assert_eq!("foobar", e.token_literal());
+
+        let value = if let IdentifierExpression{value, ..} = e {
+            value
+        } else {
+            panic!("expression is not IdentifierExpression");
+        };
+        assert_eq!("foobar", value);
     }
 
     fn check_parse_errors(p: &Parser) {
