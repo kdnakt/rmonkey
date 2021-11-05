@@ -15,6 +15,10 @@ pub enum ExpressionNode {
         token: Token,
         value: String
     },
+    IntegerLiteral {
+        token: Token,
+        value: i64,
+    },
 }
 
 pub enum StatementNode {
@@ -99,15 +103,18 @@ impl Node for StatementNode {
 
 impl Node for ExpressionNode {
     fn token_literal(&self) -> String {
-        match self {
-            IdentifierExpression{token, ..} => format!("{}", token.literal),
-        }
+        let t = match self {
+            IdentifierExpression{token, ..} => token,
+            IntegerLiteral{token, ..} => token,
+        };
+        format!("{}", t.literal)
     }
 
     fn to_string(&self) -> String {
         let mut out = String::new();
         match self {
             IdentifierExpression{value, ..} => out.push_str(value),
+            IntegerLiteral{token, ..} => out.push_str(&token.literal),
         }
         out
     }

@@ -79,14 +79,27 @@ impl Parser {
         return left_exp;
     }
 
-    fn parse_prefix(&self, t: TokenType) -> Option<ExpressionNode> {
+    fn parse_prefix(&mut  self, t: TokenType) -> Option<ExpressionNode> {
         match t {
-            Identifier => Some(IdentifierExpression {
+            IDENT => Some(IdentifierExpression {
                 token: self.cur_token.clone(),
                 value: self.cur_token.literal.to_string(),
             }),
+            INT => self.parse_integer_literal(),
             _ => None,
         }
+    }
+
+    fn parse_integer_literal(&mut self) -> Option<ExpressionNode> {
+        let token = self.cur_token.clone();
+        let result = token.literal.parse();
+        if result.is_err() {
+            let msg = format!("could not parse {} as integer", token.literal);
+            self.errors.push(msg);
+            return None;
+        }
+        let value: i64 = result.unwrap();
+        Some(IntegerLiteral { token, value })
     }
 
     fn peek_precedence(&self) -> Precedence {
@@ -130,6 +143,7 @@ impl Parser {
             return None
         }
 
+        self.next_token();
         let value = self.parse_expression(LOWEST);
 
         while !self.cur_token_is(SEMICOLON) {
@@ -292,6 +306,38 @@ mod tests {
             panic!("expression is not IdentifierExpression");
         };
         assert_eq!("foobar", value);
+    }
+
+    #[test]
+    fn it_parses_integer_literal_expression() {
+        let input = "5;".to_string();
+        let l = Lexer::new(input);
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
+        check_parse_errors(&p);
+
+        assert_eq!(1, program.statements.len());
+
+        let stmt = program.statements.get(0);
+        let expression = if let Some(ExpressionStatement{expression, ..}) = stmt {
+            expression
+        } else {
+            panic!("program.statements[0] is not ExpressionStatement, got={}", stmt.unwrap().token_literal());
+        };
+
+        let e = if let Some(e) = expression {
+            e
+        } else {
+            panic!("expression is None");
+        };
+        assert_eq!("5", e.token_literal());
+
+        let value = if let IntegerLiteral{value, ..} = e {
+            value
+        } else {
+            panic!("expression is not IntegerLiteral");
+        };
+        assert_eq!(5i64, *value);
     }
 
     fn check_parse_errors(p: &Parser) {
