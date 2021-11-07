@@ -1,8 +1,3 @@
-// Std
-use std::{
-    collections::HashMap,
-};
-
 // Internal
 use crate::{
     ast::*,
