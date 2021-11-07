@@ -355,10 +355,8 @@ mod tests {
         assert_eq!(5i64, *value);
     }
 
-
     #[test]
     fn it_parses_prefix_expressions() {
-
         for &(input, op, value) in [
             ("!5","!",5),
             ("-15","-",15),
