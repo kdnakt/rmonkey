@@ -20,6 +20,7 @@ enum Precedence {
     LESSGREATER,
     SUM,
     PRODUCT,
+    PREFIX,
 }
 
 enum PrefixParseFn {
@@ -79,15 +80,29 @@ impl Parser {
         return left_exp;
     }
 
-    fn parse_prefix(&mut  self, t: TokenType) -> Option<ExpressionNode> {
+    fn parse_prefix(&mut self, t: TokenType) -> Option<ExpressionNode> {
         match t {
             IDENT => Some(IdentifierExpression {
                 token: self.cur_token.clone(),
                 value: self.cur_token.literal.to_string(),
             }),
             INT => self.parse_integer_literal(),
+            BANG => self.parse_prefix_expression(),
+            MINUS => self.parse_prefix_expression(),
             _ => None,
         }
+    }
+
+    fn parse_prefix_expression(&mut self) -> Option<ExpressionNode> {
+        let token = self.cur_token.clone();
+        let operator = token.literal.to_string();
+        self.next_token();
+        let right = self.parse_expression(PREFIX);
+        Some(PrefixExpression {
+            token,
+            operator,
+            right: Box::new(right),
+        })
     }
 
     fn parse_integer_literal(&mut self) -> Option<ExpressionNode> {
@@ -338,6 +353,56 @@ mod tests {
             panic!("expression is not IntegerLiteral");
         };
         assert_eq!(5i64, *value);
+    }
+
+
+    #[test]
+    fn it_parses_prefix_expressions() {
+
+        for &(input, op, value) in [
+            ("!5","!",5),
+            ("-15","-",15),
+        ].iter() {
+            let l = Lexer::new(input.to_string());
+            let mut p = Parser::new(l);
+            let program = p.parse_program();
+            check_parse_errors(&p);
+
+            if program.statements.len() != 1 {
+                panic!("program.statements does not contain {} statements. got={}",
+                        1, program.statements.len());
+            }
+            let stmt = program.statements.get(0);
+            let expression = if let Some(ExpressionStatement{expression, ..}) = stmt {
+                expression
+            } else {
+                panic!("program.statements[0] is not ExpressionStatement, got={}", stmt.unwrap().token_literal());
+            };
+            let e = if let Some(e) = expression {
+                e
+            } else {
+                panic!("expression is None");
+            };
+            let (operator, right) = if let PrefixExpression{operator, right, ..} = e {
+                (operator, right)
+            } else {
+                panic!("expression is not PrefixExpression");
+            };
+            assert_eq!(op, operator);
+            test_integer_literal(right, value);
+        }
+    }
+
+    fn test_integer_literal(il: &Box<Option<ExpressionNode>>, expected: i64) {
+        let il = if let Some(e) = il.as_ref() { e } else { panic!("il is None") };
+        assert_eq!(format!("{}", expected), il.token_literal());
+
+        let value = if let IntegerLiteral{value, ..} = il {
+            value
+        } else {
+            panic!("il is not IntegerLiteral");
+        };
+        assert_eq!(expected, *value);
     }
 
     fn check_parse_errors(p: &Parser) {

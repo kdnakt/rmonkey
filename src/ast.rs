@@ -19,6 +19,11 @@ pub enum ExpressionNode {
         token: Token,
         value: i64,
     },
+    PrefixExpression {
+        token: Token,
+        operator: String,
+        right: Box<Option<ExpressionNode>>,
+    },
 }
 
 pub enum StatementNode {
@@ -106,6 +111,7 @@ impl Node for ExpressionNode {
         let t = match self {
             IdentifierExpression{token, ..} => token,
             IntegerLiteral{token, ..} => token,
+            PrefixExpression{token, ..} => token,
         };
         format!("{}", t.literal)
     }
@@ -115,6 +121,15 @@ impl Node for ExpressionNode {
         match self {
             IdentifierExpression{value, ..} => out.push_str(value),
             IntegerLiteral{token, ..} => out.push_str(&token.literal),
+            PrefixExpression{operator, right, ..} => {
+                out.push('(');
+                out.push_str(operator);
+                match right.as_ref() {
+                    Some(e) => out.push_str(&e.to_string()),
+                    None => (),
+                }
+                out.push(')');
+            }
         }
         out
     }
