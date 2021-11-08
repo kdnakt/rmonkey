@@ -24,6 +24,12 @@ pub enum ExpressionNode {
         operator: String,
         right: Box<Option<ExpressionNode>>,
     },
+    InfixExpression {
+        token: Token,
+        left: Box<Option<ExpressionNode>>,
+        operator: String,
+        right: Box<Option<ExpressionNode>>,
+    },
 }
 
 pub enum StatementNode {
@@ -112,6 +118,7 @@ impl Node for ExpressionNode {
             IdentifierExpression{token, ..} => token,
             IntegerLiteral{token, ..} => token,
             PrefixExpression{token, ..} => token,
+            InfixExpression{token, ..} => token,
         };
         format!("{}", t.literal)
     }
@@ -129,7 +136,20 @@ impl Node for ExpressionNode {
                     None => (),
                 }
                 out.push(')');
-            }
+            },
+            InfixExpression{left, operator, right, ..} => {
+                out.push('(');
+                match left.as_ref() {
+                    Some(e) => out.push_str(&e.to_string()),
+                    None => (),
+                }
+                out.push_str(operator);
+                match right.as_ref() {
+                    Some(e) => out.push_str(&e.to_string()),
+                    None => (),
+                }
+                out.push(')');
+            },
         }
         out
     }

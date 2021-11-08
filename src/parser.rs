@@ -18,6 +18,20 @@ enum Precedence {
     PREFIX,
 }
 
+fn precedence(t: TokenType) -> Precedence {
+    match t {
+        EQ => EQUALS,
+        NOTEQ => EQUALS,
+        LT => LESSGREATER,
+        GT => LESSGREATER,
+        PLUS => SUM,
+        MINUS => SUM,
+        SLASH => PRODUCT,
+        ASTERISK => PRODUCT,
+        _ => LOWEST,
+    }
+}
+
 enum PrefixParseFn {
     ParseIdentifier,
 }
@@ -56,7 +70,7 @@ impl Parser {
 
     fn parse_expression(&mut self, p: Precedence) -> Option<ExpressionNode> {
         let prefix = self.parse_prefix(self.cur_token.typ);
-        let left_exp = match prefix {
+        let mut left_exp = match prefix {
             Some(p) => Some(p),
             None => {
                 self.no_prefix_parse_fn_error(self.cur_token.typ);
@@ -66,13 +80,41 @@ impl Parser {
 
         let precedence = p as i32;
         while !self.peek_token_is(SEMICOLON) && precedence < (self.peek_precedence() as i32) {
-            // let infix = parse_infix(self.peek_token.typ);
-            // if infix == nil return left_exp;
-
+            let left = match self.peek_token.typ {
+                PLUS => left_exp,
+                MINUS => left_exp,
+                SLASH => left_exp,
+                ASTERISK => left_exp,
+                EQ => left_exp,
+                NOTEQ => left_exp,
+                GT => left_exp,
+                LT => left_exp,
+                _ => {
+                    return left_exp;
+                },
+            };
             self.next_token();
-            // left_exp = infix(left_exp);
+            left_exp = self.parse_infix_expression(left);
         }
         return left_exp;
+    }
+
+    fn parse_infix_expression(&mut self, left: Option<ExpressionNode>) -> Option<ExpressionNode> {
+        let token = self.cur_token.clone();
+        let operator = token.literal.to_string();
+        let precedence = self.cur_precedence();
+        self.next_token();
+        let right = self.parse_expression(precedence);
+        Some(InfixExpression {
+            token,
+            left: Box::new(left),
+            operator,
+            right: Box::new(right),
+        })
+    }
+
+    fn cur_precedence(&self) -> Precedence {
+        precedence(self.cur_token.typ)
     }
 
     fn parse_prefix(&mut self, t: TokenType) -> Option<ExpressionNode> {
@@ -113,17 +155,7 @@ impl Parser {
     }
 
     fn peek_precedence(&self) -> Precedence {
-        match self.peek_token.typ {
-            EQ => EQUALS,
-            NOTEQ => EQUALS,
-            LT => LESSGREATER,
-            GT => LESSGREATER,
-            PLUS => SUM,
-            MINUS => SUM,
-            SLASH => PRODUCT,
-            ASTERISK => PRODUCT,
-            _ => LOWEST,
-        }
+        precedence(self.peek_token.typ)
     }
 
     fn no_prefix_parse_fn_error(&mut self, t: TokenType) {
@@ -383,6 +415,50 @@ mod tests {
             };
             assert_eq!(op, operator);
             test_integer_literal(right, value);
+        }
+    }
+
+    #[test]
+    fn it_parses_infix_expressions() {
+        for &(input, left_val, op, right_val) in [
+            ("5 + 5", 5, "+", 5),
+            ("5 - 5", 5, "-", 5),
+            ("5 * 5", 5, "*", 5),
+            ("5 / 5", 5, "/", 5),
+            ("5 > 5", 5, ">", 5),
+            ("5 < 5", 5, "<", 5),
+            ("5 == 5", 5, "==", 5),
+            ("5 != 5", 5, "!=", 5),
+        ].iter() {
+            let l = Lexer::new(input.to_string());
+            let mut p = Parser::new(l);
+            let program = p.parse_program();
+            check_parse_errors(&p);
+
+            if program.statements.len() != 1 {
+                panic!("{}: program.statements does not contain {} statements. got={}",
+                        input, 1, program.statements.len());
+            }
+            let stmt = program.statements.get(0);
+            let expression = if let Some(ExpressionStatement{expression, ..}) = stmt {
+                expression
+            } else {
+                panic!("program.statements[0] is not ExpressionStatement, got={}", stmt.unwrap().token_literal());
+            };
+            let e = if let Some(e) = expression {
+                e
+            } else {
+                panic!("expression is None");
+            };
+
+            let (left, operator, right) = if let InfixExpression{left, operator, right, ..} = e {
+                (left, operator, right)
+            } else {
+                panic!("expression is not InfixExpression");
+            };
+            test_integer_literal(left, left_val);
+            assert_eq!(op, operator);
+            test_integer_literal(right, right_val);
         }
     }
 
