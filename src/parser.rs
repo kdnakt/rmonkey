@@ -7,7 +7,24 @@ use crate::{
     token::*,
     token::TokenType::*,
     parser::Precedence::*,
+    trace::*,
 };
+
+struct ScopeCall<F: FnMut()> {
+    c: F
+}
+
+impl<F: FnMut()> Drop for ScopeCall<F> {
+    fn drop(&mut self) {
+        (self.c)();
+    }
+}
+
+macro_rules! defer {
+    ($e: expr) => {
+        let _scope_call = ScopeCall { c: || -> () { $e; }};
+    }
+}
 
 enum Precedence {
     LOWEST = 1,
@@ -69,6 +86,8 @@ impl Parser {
     }
 
     fn parse_expression(&mut self, p: Precedence) -> Option<ExpressionNode> {
+        let trace = trace("parse_expression");
+        defer!(untrace(trace));
         let prefix = self.parse_prefix(self.cur_token.typ);
         let mut left_exp = match prefix {
             Some(p) => Some(p),
@@ -100,6 +119,8 @@ impl Parser {
     }
 
     fn parse_infix_expression(&mut self, left: Option<ExpressionNode>) -> Option<ExpressionNode> {
+        let trace = trace("parse_infix_expression");
+        defer!(untrace(trace));
         let token = self.cur_token.clone();
         let operator = token.literal.to_string();
         let precedence = self.cur_precedence();
@@ -131,6 +152,8 @@ impl Parser {
     }
 
     fn parse_prefix_expression(&mut self) -> Option<ExpressionNode> {
+        let trace = trace("parse_prefix_expression");
+        defer!(untrace(trace));
         let token = self.cur_token.clone();
         let operator = token.literal.to_string();
         self.next_token();
@@ -143,6 +166,8 @@ impl Parser {
     }
 
     fn parse_integer_literal(&mut self) -> Option<ExpressionNode> {
+        let trace = trace("parse_integer_literal");
+        defer!(untrace(trace));
         let token = self.cur_token.clone();
         let result = token.literal.parse();
         if result.is_err() {
@@ -210,6 +235,8 @@ impl Parser {
     }
 
     fn parse_expression_statement(&mut self) -> Option<StatementNode> {
+        let trace = trace("parse_expression_statement");
+        defer!(untrace(trace));
         let token = self.cur_token.clone();
         let expression = self.parse_expression(LOWEST);
         if self.peek_token_is(SEMICOLON) {
