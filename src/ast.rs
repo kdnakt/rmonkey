@@ -143,7 +143,9 @@ impl Node for ExpressionNode {
                     Some(e) => out.push_str(&e.to_string()),
                     None => (),
                 }
+                out.push(' ');
                 out.push_str(operator);
+                out.push(' ');
                 match right.as_ref() {
                     Some(e) => out.push_str(&e.to_string()),
                     None => (),

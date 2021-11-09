@@ -462,6 +462,46 @@ mod tests {
         }
     }
 
+    #[test]
+    fn it_parses_operator_precedence() {
+        for &(input, expected) in [
+            ("-a * b", "((-a) * b)"),
+            ("!-a", "(!(-a))"),
+            ("a + b + c", "((a + b) + c)"),
+            ("a + b - c", "((a + b) - c)"),
+            ("a * b * c", "((a * b) * c)"),
+            ("a * b / c", "((a * b) / c)"),
+            ("a + b / c", "(a + (b / c))"),
+            (
+                "a + b * c + d / e - f",
+                "(((a + (b * c)) + (d / e)) - f)"
+            ),
+            (
+                "3 + 4; -5 * 5",
+                "(3 + 4)((-5) * 5)"
+            ),
+            (
+                "5 > 4 == 3 < 4",
+                "((5 > 4) == (3 < 4))"
+            ),
+            (
+                "5 < 4 != 3 < 4",
+                "((5 < 4) != (3 < 4))"
+            ),
+            (
+                "3 + 4 * 5 == 3 * 1 + 4 * 5",
+                "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))"
+            ),
+        ].iter() {
+            let l = Lexer::new(input.to_string());
+            let mut p = Parser::new(l);
+            let program = p.parse_program();
+            check_parse_errors(&p);
+
+            assert_eq!(expected, program.to_string());
+        }
+    }
+
     fn test_integer_literal(il: &Box<Option<ExpressionNode>>, expected: i64) {
         let il = if let Some(e) = il.as_ref() { e } else { panic!("il is None") };
         assert_eq!(format!("{}", expected), il.token_literal());
