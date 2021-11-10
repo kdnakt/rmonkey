@@ -147,8 +147,17 @@ impl Parser {
             INT => self.parse_integer_literal(),
             BANG => self.parse_prefix_expression(),
             MINUS => self.parse_prefix_expression(),
+            TRUE => self.parse_boolean_expression(),
+            FALSE => self.parse_boolean_expression(),
             _ => None,
         }
+    }
+
+    fn parse_boolean_expression(&self) -> Option<ExpressionNode> {
+        Some(Boolean {
+            token: self.cur_token.clone(),
+            value: self.cur_token_is(TRUE),
+        })
     }
 
     fn parse_prefix_expression(&mut self) -> Option<ExpressionNode> {
@@ -519,6 +528,14 @@ mod tests {
                 "3 + 4 * 5 == 3 * 1 + 4 * 5",
                 "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))"
             ),
+            (
+                "true",
+                "true",
+            ),
+            (
+                "false",
+                "false",
+            ),
         ].iter() {
             let l = Lexer::new(input.to_string());
             let mut p = Parser::new(l);
@@ -526,6 +543,42 @@ mod tests {
             check_parse_errors(&p);
 
             assert_eq!(expected, program.to_string());
+        }
+    }
+
+    #[test]
+    fn it_parses_boolean_expression() {
+        for &(input, expected) in [
+            ("true", true),
+            ("false", false),
+        ].iter() {
+            let l = Lexer::new(input.to_string());
+            let mut p = Parser::new(l);
+            let program = p.parse_program();
+            check_parse_errors(&p);
+
+            if program.statements.len() != 1 {
+                panic!("{}: program.statements does not contain {} statements. got={}",
+                        input, 1, program.statements.len());
+            }
+            let stmt = program.statements.get(0);
+            let expression = if let Some(ExpressionStatement{expression, ..}) = stmt {
+                expression
+            } else {
+                panic!("program.statements[0] is not ExpressionStatement, got={}", stmt.unwrap().token_literal());
+            };
+            let e = if let Some(e) = expression {
+                e
+            } else {
+                panic!("expression is None");
+            };
+            assert_eq!(input, e.token_literal());
+
+            if let Boolean{value, ..} = e {
+                assert_eq!(&expected, value);
+            } else {
+                panic!("expression is not Boolean");
+            };
         }
     }
 

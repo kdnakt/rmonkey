@@ -30,6 +30,10 @@ pub enum ExpressionNode {
         operator: String,
         right: Box<Option<ExpressionNode>>,
     },
+    Boolean {
+        token: Token,
+        value: bool,
+    },
 }
 
 pub enum StatementNode {
@@ -119,6 +123,7 @@ impl Node for ExpressionNode {
             IntegerLiteral{token, ..} => token,
             PrefixExpression{token, ..} => token,
             InfixExpression{token, ..} => token,
+            Boolean{token, ..} => token,
         };
         format!("{}", t.literal)
     }
@@ -152,6 +157,7 @@ impl Node for ExpressionNode {
                 }
                 out.push(')');
             },
+            Boolean{token, ..} => out.push_str(&token.literal),
         }
         out
     }
