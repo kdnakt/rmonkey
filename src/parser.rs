@@ -439,16 +439,12 @@ mod tests {
             } else {
                 panic!("program.statements[0] is not ExpressionStatement, got={}", stmt.unwrap().token_literal());
             };
-            let e = if let Some(e) = expression {
-                e
-            } else {
-                panic!("expression is None");
-            };
-            let (operator, right) = if let PrefixExpression{operator, right, ..} = e {
+            let (operator, right) = if let Some(PrefixExpression{operator, right, ..}) = expression {
                 (operator, right)
             } else {
-                panic!("expression is not PrefixExpression");
+                panic!("expression is None or not PrefixExpression");
             };
+
             assert_eq!(op, operator);
             test_integer_literal(right, value);
         }
@@ -481,17 +477,12 @@ mod tests {
             } else {
                 panic!("program.statements[0] is not ExpressionStatement, got={}", stmt.unwrap().token_literal());
             };
-            let e = if let Some(e) = expression {
-                e
-            } else {
-                panic!("expression is None");
-            };
-
-            let (left, operator, right) = if let InfixExpression{left, operator, right, ..} = e {
+            let (left, operator, right) = if let Some(InfixExpression{left, operator, right, ..}) = expression {
                 (left, operator, right)
             } else {
-                panic!("expression is not InfixExpression");
+                panic!("expression is None or not InfixExpression");
             };
+
             test_integer_literal(left, left_val);
             assert_eq!(op, operator);
             test_integer_literal(right, right_val);
