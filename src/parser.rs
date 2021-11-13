@@ -490,6 +490,39 @@ mod tests {
     }
 
     #[test]
+    fn it_parses_infix_bool_expressions() {
+        for &(input, left_val, op, right_val) in [
+            ("true == true", true, "==", true),
+            ("true != false", true, "!=", false),
+        ].iter() {
+            let l = Lexer::new(input.to_string());
+            let mut p = Parser::new(l);
+            let program = p.parse_program();
+            check_parse_errors(&p);
+
+            if program.statements.len() != 1 {
+                panic!("{}: program.statements does not contain {} statements. got={}",
+                        input, 1, program.statements.len());
+            }
+            let stmt = program.statements.get(0);
+            let expression = if let Some(ExpressionStatement{expression, ..}) = stmt {
+                expression
+            } else {
+                panic!("program.statements[0] is not ExpressionStatement, got={}", stmt.unwrap().token_literal());
+            };
+            let (left, operator, right) = if let Some(InfixExpression{left, operator, right, ..}) = expression {
+                (left, operator, right)
+            } else {
+                panic!("expression is None or not InfixExpression");
+            };
+
+            test_boolean_literal(left, left_val);
+            assert_eq!(op, operator);
+            test_boolean_literal(right, right_val);
+        }
+    }
+
+    #[test]
     fn it_parses_operator_precedence() {
         for &(input, expected) in [
             ("-a * b", "((-a) * b)"),
@@ -581,6 +614,18 @@ mod tests {
             value
         } else {
             panic!("il is not IntegerLiteral");
+        };
+        assert_eq!(expected, *value);
+    }
+
+    fn test_boolean_literal(exp: &Box<Option<ExpressionNode>>, expected: bool) {
+        let bo = if let Some(e) = exp.as_ref() { e } else { panic!("exp is None") };
+        assert_eq!(format!("{}", expected), bo.token_literal());
+
+        let value = if let Boolean{value, ..} = bo {
+            value
+        } else {
+            panic!("bo is not Boolean");
         };
         assert_eq!(expected, *value);
     }
