@@ -296,6 +296,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
+    use std::any::Any;
     use super::Parser;
     use crate::lexer::Lexer;
     use crate::ast::*;
@@ -498,6 +499,40 @@ mod tests {
             assert_eq!(op, operator);
             test_integer_literal(right, right_val);
         }
+    }
+
+    fn test_infix_expression(e: &ExpressionNode, left_val: &dyn Any, op: &str, right_val: &dyn Any) {
+        let (left, operator, right) = if let InfixExpression{left, operator, right, ..} = e {
+            (left, operator, right)
+        } else {
+            panic!("expression is not InfixExpression");
+        };
+
+        test_literal_expression(left, left_val);
+        assert_eq!(op, operator);
+    }
+
+    fn test_literal_expression(exp: &Box<Option<ExpressionNode>>, expected: &dyn Any) {
+        // if expected.is::<String>() {
+        //     //test_identifier(exp, *expected);
+        // } else {
+        //     panic!("type of exp not handled, got={}", exp.unwrap().token_literal());
+        // }
+    }
+
+    fn test_identifier(exp: &Box<Option<ExpressionNode>>, expected: String) {
+        let e = if let Some(e) = exp.as_ref() {
+            e
+        } else {
+            panic!("exp is None");
+        };
+        assert_eq!(expected, e.token_literal());
+        let value = if let IdentifierExpression{value, ..} = e {
+            value
+        } else {
+            panic!("exp not IdentifierExpression");
+        };
+        assert_eq!(expected, *value);
     }
 
     #[test]
