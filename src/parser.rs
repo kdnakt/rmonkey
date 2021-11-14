@@ -149,6 +149,7 @@ impl Parser {
             MINUS => self.parse_prefix_expression(),
             TRUE => self.parse_boolean_expression(),
             FALSE => self.parse_boolean_expression(),
+            LPAREN => self.parse_grouped_expression(),
             _ => None,
         }
     }
@@ -158,6 +159,16 @@ impl Parser {
             token: self.cur_token.clone(),
             value: self.cur_token_is(TRUE),
         })
+    }
+
+    fn parse_grouped_expression(&mut self) -> Option<ExpressionNode> {
+        self.next_token();
+        let exp = self.parse_expression(LOWEST);
+        if !self.expect_peek(RPAREN) {
+            None
+        } else {
+            exp
+        }
     }
 
     fn parse_prefix_expression(&mut self) -> Option<ExpressionNode> {
@@ -559,6 +570,18 @@ mod tests {
             (
                 "false",
                 "false",
+            ),
+            (
+                "3 > 5 == false",
+                "((3 > 5) == false)",
+            ),
+            (
+                "1 + (2 + 3) + 4",
+                "((1 + (2 + 3)) + 4)",
+            ),
+            (
+                "-(5 + 5)",
+                "(-(5 + 5))",
             ),
         ].iter() {
             let l = Lexer::new(input.to_string());
