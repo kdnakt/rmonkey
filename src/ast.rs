@@ -34,6 +34,12 @@ pub enum ExpressionNode {
         token: Token,
         value: bool,
     },
+    IfExpression {
+        token: Token,
+        condition: Box<ExpressionNode>,
+        consequence: Box<StatementNode>, // BlockStatement
+        alternative: Box<Option<StatementNode>>, // BlockStatement
+    },
 }
 
 pub enum StatementNode {
@@ -49,6 +55,10 @@ pub enum StatementNode {
     ExpressionStatement {
         token: Token,
         expression: Option<ExpressionNode>,
+    },
+    BlockStatement {
+        token: Token,
+        statements: Vec<StatementNode>,
     },
 }
 
@@ -80,6 +90,7 @@ impl Node for StatementNode {
             LetStatement{token, ..} => token,
             ReturnStatement{token, ..} => token,
             ExpressionStatement{token, ..} => token,
+            BlockStatement{token, ..} => token,
         };
         format!("{}", t.literal)
     }
@@ -109,6 +120,13 @@ impl Node for StatementNode {
                     None => return "".to_string(),
                 };
             },
+            BlockStatement{statements, ..} => {
+                let mut buf = String::new();
+                for s in statements {
+                    buf.push_str(&s.to_string());
+                }
+                return buf;
+            },
         }
         out.push(';');
         out
@@ -124,6 +142,7 @@ impl Node for ExpressionNode {
             PrefixExpression{token, ..} => token,
             InfixExpression{token, ..} => token,
             Boolean{token, ..} => token,
+            IfExpression{token, ..} => token,
         };
         format!("{}", t.literal)
     }
@@ -158,6 +177,19 @@ impl Node for ExpressionNode {
                 out.push(')');
             },
             Boolean{token, ..} => out.push_str(&token.literal),
+            IfExpression{condition, consequence, alternative, ..} => {
+                out.push_str("if");
+                out.push_str(&condition.to_string());
+                out.push(' ');
+                out.push_str(&consequence.to_string());
+                match alternative.as_ref() {
+                    Some(e) => {
+                        out.push_str("else ");
+                        out.push_str(&e.to_string());
+                    },
+                    None => (),
+                }
+            }
         }
         out
     }

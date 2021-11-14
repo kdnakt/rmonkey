@@ -629,6 +629,80 @@ mod tests {
         }
     }
 
+    #[test]
+    fn it_parses_if_statement() {
+        let input = "if (x < y) { x }".to_string();
+        let l = Lexer::new(input);
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
+        check_parse_errors(&p);
+
+        assert_eq!(1, program.statements.len());
+
+        let stmt = program.statements.get(0);
+        let expression = if let Some(ExpressionStatement{expression, ..}) = stmt {
+            expression
+        } else {
+            panic!("program.statements[0] is not ExpressionStatement, got={}", stmt.unwrap().token_literal());
+        };
+        let (cond, cons, alt) = if let Some(IfExpression{condition, consequence, alternative, ..}) = expression {
+            (condition, consequence, alternative)
+        } else {
+            panic!("expression is None");
+        };
+
+        // TODO: replace with test_infix_expression()
+        let (left, op, right) = if let InfixExpression{left, operator, right, ..} = cond.as_ref() {
+            (left, operator, right)
+        } else {
+            panic!("expression is None or not InfixExpression");
+        };
+        test_identifier(left, "x");
+        assert_eq!(op, "<");
+        test_identifier(right, "y");
+
+        let statements = if let BlockStatement{statements, ..} = cons.as_ref() {
+            statements
+        } else {
+            panic!("cons is not BlockStatement");
+        };
+        assert_eq!(1, statements.len());
+        let stmt = statements.get(0);
+        let expression = if let Some(ExpressionStatement{expression, ..}) = stmt {
+            expression
+        } else {
+            panic!("consequence.statements[0] is not ExpressionStatement, got={}", stmt.unwrap().token_literal());
+        };
+        test_ident(expression, "x");
+
+        match alt.as_ref() {
+            Some(e) => panic!("alternative was not None, got={}", e.token_literal()),
+            None => (),
+        }
+    }
+
+    fn test_identifier(exp: &Box<Option<ExpressionNode>>, expected: &str) {
+        let ident = if let Some(e) = exp.as_ref() { e } else { panic!("exp is None"); };
+        assert_eq!(expected, ident.token_literal());
+        let value = if let IdentifierExpression{value, ..} = ident {
+            value
+        } else {
+            panic!("ident is not IdentifierExpression");
+        };
+        assert_eq!(expected, value);
+    }
+
+    fn test_ident(exp: &Option<ExpressionNode>, expected: &str) {
+        let ident = if let Some(e) = exp { e } else { panic!("exp is None"); };
+        assert_eq!(expected, ident.token_literal());
+        let value = if let IdentifierExpression{value, ..} = ident {
+            value
+        } else {
+            panic!("ident is not IdentifierExpression");
+        };
+        assert_eq!(expected, value);
+    }
+
     fn test_integer_literal(il: &Box<Option<ExpressionNode>>, expected: i64) {
         let il = if let Some(e) = il.as_ref() { e } else { panic!("il is None") };
         assert_eq!(format!("{}", expected), il.token_literal());
