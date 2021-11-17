@@ -150,6 +150,7 @@ impl Parser {
             TRUE => self.parse_boolean_expression(),
             FALSE => self.parse_boolean_expression(),
             LPAREN => self.parse_grouped_expression(),
+            IF => self.parse_if_expression(),
             _ => None,
         }
     }
@@ -168,6 +169,62 @@ impl Parser {
             None
         } else {
             exp
+        }
+    }
+
+    fn parse_if_expression(&mut self) -> Option<ExpressionNode> {
+        let token = self.cur_token.clone();
+        if !self.expect_peek(LPAREN) {
+            return None
+        }
+        self.next_token();
+        let condition = self.parse_expression(LOWEST);
+        if !self.expect_peek(RPAREN) {
+            return None
+        }
+        if !self.expect_peek(LBRACE) {
+            return None
+        }
+        let consequence = self.parse_block_statement();
+
+        if self.peek_token_is(ELSE) {
+            self.next_token();
+            if !self.expect_peek(LBRACE) {
+                return None
+            }
+            Some(IfExpression {
+                token,
+                condition: Box::new(condition),
+                consequence: Box::new(consequence),
+                alternative: Box::new(Some(self.parse_block_statement())),
+            })
+        } else {
+            Some(IfExpression {
+                token,
+                condition: Box::new(condition),
+                consequence: Box::new(consequence),
+                alternative: Box::new(None),
+            })
+        }
+    }
+
+    fn parse_block_statement(&mut self) -> StatementNode {
+        let token = self.cur_token.clone();
+        let mut statements = Vec::new();
+        self.next_token();
+
+        while !self.cur_token_is(RBRACE) && !self.cur_token_is(EOF) {
+            let stmt = self.parse_statement();
+            match stmt {
+                Some(s) => statements.push(s),
+                None => (),
+            }
+            self.next_token();
+        }
+
+        BlockStatement {
+            token,
+            statements,
         }
     }
 
@@ -652,7 +709,7 @@ mod tests {
         };
 
         // TODO: replace with test_infix_expression()
-        let (left, op, right) = if let InfixExpression{left, operator, right, ..} = cond.as_ref() {
+        let (left, op, right) = if let Some(InfixExpression{left, operator, right, ..}) = cond.as_ref() {
             (left, operator, right)
         } else {
             panic!("expression is None or not InfixExpression");

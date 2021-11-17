@@ -36,7 +36,7 @@ pub enum ExpressionNode {
     },
     IfExpression {
         token: Token,
-        condition: Box<ExpressionNode>,
+        condition: Box<Option<ExpressionNode>>,
         consequence: Box<StatementNode>, // BlockStatement
         alternative: Box<Option<StatementNode>>, // BlockStatement
     },
@@ -179,7 +179,10 @@ impl Node for ExpressionNode {
             Boolean{token, ..} => out.push_str(&token.literal),
             IfExpression{condition, consequence, alternative, ..} => {
                 out.push_str("if");
-                out.push_str(&condition.to_string());
+                match condition.as_ref() {
+                    Some(e) => out.push_str(&e.to_string()),
+                    None => (),
+                }
                 out.push(' ');
                 out.push_str(&consequence.to_string());
                 match alternative.as_ref() {
