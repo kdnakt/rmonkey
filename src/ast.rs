@@ -40,6 +40,11 @@ pub enum ExpressionNode {
         consequence: Box<StatementNode>, // BlockStatement
         alternative: Box<Option<StatementNode>>, // BlockStatement
     },
+    FunctionLiteral {
+        token: Token,
+        parameters: Vec<ExpressionNode>,
+        body: Box<StatementNode>, // BlockStatement
+    },
 }
 
 pub enum StatementNode {
@@ -143,6 +148,7 @@ impl Node for ExpressionNode {
             InfixExpression{token, ..} => token,
             Boolean{token, ..} => token,
             IfExpression{token, ..} => token,
+            FunctionLiteral{token, ..} => token,
         };
         format!("{}", t.literal)
     }
@@ -192,6 +198,15 @@ impl Node for ExpressionNode {
                     },
                     None => (),
                 }
+            },
+            FunctionLiteral{parameters, body, token, ..} => {
+                out.push_str(&token.literal.to_string());
+                out.push('(');
+                out.push_str(&parameters.iter()
+                    .map(|p| p.to_string())
+                    .collect::<Vec<_>>().join(", "));
+                out.push(')');
+                out.push_str(&body.to_string());
             }
         }
         out

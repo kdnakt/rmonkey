@@ -730,12 +730,62 @@ mod tests {
         } else {
             panic!("consequence.statements[0] is not ExpressionStatement, got={}", stmt.unwrap().token_literal());
         };
-        test_ident(expression, "x");
+        test_ident(&Some(expression.as_ref().unwrap()), "x");
 
         match alt.as_ref() {
             Some(e) => panic!("alternative was not None, got={}", e.token_literal()),
             None => (),
         }
+    }
+
+    #[test]
+    fn it_parses_function_literal() {
+        let input = "fn(x, y) { x + y; }".to_string();
+        let l = Lexer::new(input);
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
+        check_parse_errors(&p);
+
+        assert_eq!(1, program.statements.len());
+
+        let stmt = program.statements.get(0);
+        let expression = if let Some(ExpressionStatement{expression, ..}) = stmt {
+            expression
+        } else {
+            panic!("program.statements[0] is not ExpressionStatement, got={}", stmt.unwrap().token_literal());
+        };
+        let (params, body) = if let Some(FunctionLiteral{parameters, body, ..}) = expression {
+            (parameters, body)
+        } else {
+            panic!("expression is None");
+        };
+
+        assert_eq!(2, params.len());
+        test_ident(&params.get(0), "x");
+        test_ident(&params.get(1), "y");
+
+        let statements = if let BlockStatement{statements, ..} = body.as_ref() {
+            statements
+        } else {
+            panic!("body is not BlockStatement");
+        };
+
+        assert_eq!(1, statements.len());
+        // TODO: replace with test_infix_expression()
+        let stmt = statements.get(0);
+        let expression = if let Some(ExpressionStatement{expression, ..}) = stmt {
+            expression
+        } else {
+            panic!("stmt is not ExpressionStatement");
+        };
+        let (left, op, right) = if let Some(InfixExpression{left, operator, right, ..}) = expression {
+            (left, operator, right)
+        } else {
+            panic!("expression is None or not InfixExpression");
+        };
+        test_identifier(&left, "x");
+        assert_eq!(op, "<");
+        test_identifier(&right, "y");
     }
 
     fn test_identifier(exp: &Box<Option<ExpressionNode>>, expected: &str) {
@@ -749,7 +799,7 @@ mod tests {
         assert_eq!(expected, value);
     }
 
-    fn test_ident(exp: &Option<ExpressionNode>, expected: &str) {
+    fn test_ident(exp: &Option<&ExpressionNode>, expected: &str) {
         let ident = if let Some(e) = exp { e } else { panic!("exp is None"); };
         assert_eq!(expected, ident.token_literal());
         let value = if let IdentifierExpression{value, ..} = ident {
