@@ -788,6 +788,37 @@ mod tests {
         test_identifier(&right, "y");
     }
 
+    #[test]
+    fn it_parses_function_parameter() {
+        for &(input, expected_params) in [
+            ("fn() {};", &[].to_vec()),
+            ("fn(x) {};", &["x"].to_vec()),
+            ("fn(x, y, z) {};", &["x", "y", "z"].to_vec()),
+        ].iter() {
+            let l = Lexer::new(input.to_string());
+            let mut p = Parser::new(l);
+            let program = p.parse_program();
+            check_parse_errors(&p);
+
+            let stmt = program.statements.get(0);
+            let expression = if let Some(ExpressionStatement{expression, ..}) = stmt {
+                expression
+            } else {
+                panic!("program.statements[0] is not ExpressionStatement, got={}", stmt.unwrap().token_literal());
+            };
+            let params = if let Some(FunctionLiteral{parameters, ..}) = expression {
+                parameters
+            } else {
+                panic!("expression is None");
+            };
+
+            assert_eq!(expected_params.len(), params.len());
+            for (index, &expected) in expected_params.iter().enumerate() {
+                test_ident(&params.get(index), expected);
+            }
+        }
+    }
+
     fn test_identifier(exp: &Box<Option<ExpressionNode>>, expected: &str) {
         let ident = if let Some(e) = exp.as_ref() { e } else { panic!("exp is None"); };
         assert_eq!(expected, ident.token_literal());
