@@ -140,10 +140,7 @@ impl Parser {
 
     fn parse_prefix(&mut self, t: TokenType) -> Option<ExpressionNode> {
         match t {
-            IDENT => Some(IdentifierExpression {
-                token: self.cur_token.clone(),
-                value: self.cur_token.literal.to_string(),
-            }),
+            IDENT => Some(self.parse_identifier_expression()),
             INT => self.parse_integer_literal(),
             BANG => self.parse_prefix_expression(),
             MINUS => self.parse_prefix_expression(),
@@ -151,7 +148,60 @@ impl Parser {
             FALSE => self.parse_boolean_expression(),
             LPAREN => self.parse_grouped_expression(),
             IF => self.parse_if_expression(),
+            FUNCTION => self.parse_function_expression(),
             _ => None,
+        }
+    }
+
+    fn parse_function_expression(&mut self) -> Option<ExpressionNode> {
+        let trace = trace("parse_function_expression");
+        defer!(untrace(trace));
+        let token = self.cur_token.clone();
+        if !self.expect_peek(LPAREN) {
+            return None
+        }
+
+        let parameters = self.parse_function_parameters();
+
+        if !self.expect_peek(LBRACE) {
+            return None
+        }
+        let body = self.parse_block_statement();
+        Some(FunctionLiteral{
+            token,
+            parameters,
+            body: Box::new(body),
+        })
+    }
+
+    fn parse_function_parameters(&mut self) -> Vec<ExpressionNode> {
+        let trace = trace("parse_function_parameters");
+        defer!(untrace(trace));
+        if self.peek_token_is(RPAREN) {
+            self.next_token();
+            return Vec::new();
+        }
+
+        self.next_token();
+        let mut identifiers = Vec::new();
+        identifiers.push(self.parse_identifier_expression());
+
+        while self.peek_token_is(COMMA) {
+            self.next_token();
+            self.next_token();
+            identifiers.push(self.parse_identifier_expression());
+        }
+
+        if !self.expect_peek(RPAREN) {
+            return Vec::new();
+        }
+        identifiers
+    }
+
+    fn parse_identifier_expression(&self) -> ExpressionNode {
+        IdentifierExpression {
+            token: self.cur_token.clone(),
+            value: self.cur_token.literal.to_string(),
         }
     }
 
@@ -163,6 +213,8 @@ impl Parser {
     }
 
     fn parse_grouped_expression(&mut self) -> Option<ExpressionNode> {
+        let trace = trace("parse_grouped_expression");
+        defer!(untrace(trace));
         self.next_token();
         let exp = self.parse_expression(LOWEST);
         if !self.expect_peek(RPAREN) {
@@ -173,6 +225,8 @@ impl Parser {
     }
 
     fn parse_if_expression(&mut self) -> Option<ExpressionNode> {
+        let trace = trace("parse_if_expression");
+        defer!(untrace(trace));
         let token = self.cur_token.clone();
         if !self.expect_peek(LPAREN) {
             return None
@@ -209,6 +263,8 @@ impl Parser {
     }
 
     fn parse_block_statement(&mut self) -> StatementNode {
+        let trace = trace("parse_block_statement");
+        defer!(untrace(trace));
         let token = self.cur_token.clone();
         let mut statements = Vec::new();
         self.next_token();
@@ -279,9 +335,7 @@ impl Parser {
             return None
         }
 
-        let i_token = self.cur_token.clone();
-        let i_lit = i_token.literal.clone();
-        let name = IdentifierExpression { token: i_token, value: i_lit };
+        let name = self.parse_identifier_expression();
 
         if !self.expect_peek(ASSIGN) {
             return None
@@ -784,7 +838,7 @@ mod tests {
             panic!("expression is None or not InfixExpression");
         };
         test_identifier(&left, "x");
-        assert_eq!(op, "<");
+        assert_eq!(op, "+");
         test_identifier(&right, "y");
     }
 
