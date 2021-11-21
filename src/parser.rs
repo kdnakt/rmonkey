@@ -33,6 +33,7 @@ enum Precedence {
     SUM,
     PRODUCT,
     PREFIX,
+    CALL,
 }
 
 fn precedence(t: TokenType) -> Precedence {
@@ -45,6 +46,7 @@ fn precedence(t: TokenType) -> Precedence {
         MINUS => SUM,
         SLASH => PRODUCT,
         ASTERISK => PRODUCT,
+        LPAREN => CALL,
         _ => LOWEST,
     }
 }
@@ -99,21 +101,26 @@ impl Parser {
 
         let precedence = p as i32;
         while !self.peek_token_is(SEMICOLON) && precedence < (self.peek_precedence() as i32) {
-            let left = match self.peek_token.typ {
-                PLUS => left_exp,
-                MINUS => left_exp,
-                SLASH => left_exp,
-                ASTERISK => left_exp,
-                EQ => left_exp,
-                NOTEQ => left_exp,
-                GT => left_exp,
-                LT => left_exp,
+            let (left, is_infix) = match self.peek_token.typ {
+                PLUS => (left_exp, true),
+                MINUS => (left_exp, true),
+                SLASH => (left_exp, true),
+                ASTERISK => (left_exp, true),
+                EQ => (left_exp, true),
+                NOTEQ => (left_exp, true),
+                GT => (left_exp, true),
+                LT => (left_exp, true),
+                LPAREN => (left_exp, false),
                 _ => {
                     return left_exp;
                 },
             };
             self.next_token();
-            left_exp = self.parse_infix_expression(left);
+            left_exp = if is_infix {
+                self.parse_infix_expression(left)
+            } else {
+                self.parse_call_expression(left)
+            }
         }
         return left_exp;
     }
@@ -132,6 +139,47 @@ impl Parser {
             operator,
             right: Box::new(right),
         })
+    }
+
+    fn parse_call_expression(&mut self, left: Option<ExpressionNode>) -> Option<ExpressionNode> {
+        let trace = trace("parse_call_expression");
+        defer!(untrace(trace));
+        let arguments = self.parse_call_arguments();
+        Some(CallExpression {
+            token: self.cur_token.clone(),
+            function: Box::new(left),
+            arguments,
+        })
+    }
+
+    fn parse_call_arguments(&mut self) -> Vec<ExpressionNode> {
+        if self.peek_token_is(RPAREN) {
+            self.next_token();
+            return Vec::new();
+        }
+
+        self.next_token();
+        let mut args = Vec::new();
+        let arg = self.parse_expression(LOWEST);
+        match arg {
+            Some(a) => args.push(a),
+            None => (),
+        }
+
+        while self.peek_token_is(COMMA) {
+            self.next_token();
+            self.next_token();
+            let arg = self.parse_expression(LOWEST);
+            match arg {
+                Some(a) => args.push(a),
+                None => (),
+            }
+        }
+
+        if !self.expect_peek(RPAREN) {
+            return Vec::new();
+        }
+        args
     }
 
     fn cur_precedence(&self) -> Precedence {
@@ -694,6 +742,14 @@ mod tests {
                 "-(5 + 5)",
                 "(-(5 + 5))",
             ),
+            (
+                "a + add(b * c) + d",
+                "((a + add((b * c))) + d)",
+            ),
+            (
+                "add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))",
+                "add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))",
+            ),
         ].iter() {
             let l = Lexer::new(input.to_string());
             let mut p = Parser::new(l);
@@ -871,6 +927,59 @@ mod tests {
                 test_ident(&params.get(index), expected);
             }
         }
+    }
+
+    #[test]
+    fn it_parses_call_expression() {
+        let input = "add(1, 2 * 3, 4 + 5);".to_string();
+        let l = Lexer::new(input);
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
+        check_parse_errors(&p);
+
+        assert_eq!(1, program.statements.len());
+
+        let stmt = program.statements.get(0);
+        let expression = if let Some(ExpressionStatement{expression, ..}) = stmt {
+            expression
+        } else {
+            panic!("program.statements[0] is not ExpressionStatement, got={}", stmt.unwrap().token_literal());
+        };
+        let (func, args) = if let Some(CallExpression{function, arguments, ..}) = expression {
+            (function, arguments)
+        } else {
+            panic!("expression is None");
+        };
+
+        test_identifier(func, "add");
+
+        assert_eq!(3, args.len());
+
+        if let Some(IntegerLiteral{value, ..}) = args.get(0) {
+            assert_eq!(1, *value);
+        }
+
+        // TODO: Replace with test_infix_expresson()
+        let arg = args.get(1);
+        let (left, op, right) = if let Some(InfixExpression{left, operator, right, ..}) = arg {
+            (left, operator, right)
+        } else {
+            panic!("expression is None or not InfixExpression");
+        };
+        test_integer_literal(&left, 2);
+        assert_eq!(op, "*");
+        test_integer_literal(&right, 3);
+
+        // TODO: Replace with test_infix_expresson()
+        let arg = args.get(2);
+        let (left, op, right) = if let Some(InfixExpression{left, operator, right, ..}) = arg {
+            (left, operator, right)
+        } else {
+            panic!("expression is None or not InfixExpression");
+        };
+        test_integer_literal(&left, 4);
+        assert_eq!(op, "+");
+        test_integer_literal(&right, 5);
     }
 
     fn test_identifier(exp: &Box<Option<ExpressionNode>>, expected: &str) {

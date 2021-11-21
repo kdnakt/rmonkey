@@ -45,6 +45,11 @@ pub enum ExpressionNode {
         parameters: Vec<ExpressionNode>,
         body: Box<StatementNode>, // BlockStatement
     },
+    CallExpression {
+        token: Token,
+        function: Box<Option<ExpressionNode>>, // Identifier or FunctionLiteral
+        arguments: Vec<ExpressionNode>,
+    },
 }
 
 pub enum StatementNode {
@@ -149,6 +154,7 @@ impl Node for ExpressionNode {
             Boolean{token, ..} => token,
             IfExpression{token, ..} => token,
             FunctionLiteral{token, ..} => token,
+            CallExpression{token, ..} => token,
         };
         format!("{}", t.literal)
     }
@@ -207,6 +213,17 @@ impl Node for ExpressionNode {
                     .collect::<Vec<_>>().join(", "));
                 out.push(')');
                 out.push_str(&body.to_string());
+            },
+            CallExpression{function, arguments, ..} => {
+                match function.as_ref() {
+                    Some(e) => out.push_str(&e.to_string()),
+                    None => (),
+                }
+                out.push('(');
+                out.push_str(&arguments.iter()
+                    .map(|a| a.to_string())
+                    .collect::<Vec<_>>().join(", "));
+                out.push(')');
             }
         }
         out
