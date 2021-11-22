@@ -10,6 +10,7 @@ pub trait Node {
     fn to_string(&self) -> String;
 }
 
+#[derive(Debug, PartialEq)]
 pub enum ExpressionNode {
     IdentifierExpression {
         token: Token,
@@ -52,6 +53,7 @@ pub enum ExpressionNode {
     },
 }
 
+#[derive(Debug, PartialEq)]
 pub enum StatementNode {
     LetStatement {
         token: Token,

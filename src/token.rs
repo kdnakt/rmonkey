@@ -11,7 +11,7 @@ use crate::{
     token::TokenType::*,
 };
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Token {
     pub typ: TokenType,
     pub literal: String,

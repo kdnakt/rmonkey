@@ -460,27 +460,38 @@ mod tests {
     use crate::ast::*;
     use crate::ast::StatementNode::*;
     use crate::ast::ExpressionNode::*;
+    use crate::token::Token;
+    use crate::token::TokenType::*;
     #[test]
     fn it_parses_let_statements() {
-        let input = "
-            let x = 5;
-            let y = 10;
-            let foobar = 838383;
-        ".to_string();
-        let l = Lexer::new(input);
-        let mut p = Parser::new(l);
-        let program = p.parse_program();
-        check_parse_errors(&p);
-
-        assert_eq!(3, program.statements.len());
-
-        for &(index, expected_identifier) in [
-            (0, "x"),
-            (1, "y"),
-            (2, "foobar")
+        for &(input, ident, expected) in [
+            ("let x = 5;", "x", &IntegerLiteral{
+                token: Token{ typ: INT, literal: "5".to_string()},
+                value: 5,
+            }),
+            ("let y = true;", "y", &Boolean{
+                token: Token{ typ: TRUE, literal: "true".to_string()},
+                value: true,
+            }),
+            ("let foobar = y;", "foobar", &IdentifierExpression{
+                token: Token{ typ: IDENT, literal: "y".to_string()},
+                value: "y".to_string(),
+            }),
         ].iter() {
-            let stmt = program.statements.get(index);
-            test_let_statement(stmt.unwrap(), expected_identifier.to_string());
+            let l = Lexer::new(input.to_string());
+            let mut p = Parser::new(l);
+            let program = p.parse_program();
+            check_parse_errors(&p);
+
+            assert_eq!(1, program.statements.len());
+            let stmt = program.statements.get(0).unwrap();
+            test_let_statement(stmt, ident.to_string());
+            let actual = if let LetStatement{value, ..} = stmt {
+                value.as_ref().unwrap()
+            } else {
+                panic!("stmt is not LetStatement");
+            };
+            assert_eq!(expected, actual);
         }
     }
 
@@ -502,25 +513,29 @@ mod tests {
 
     #[test]
     fn it_parses_return_statements() {
-        let input = "
-            return 5;
-            return 10;
-            return 993322;
-        ".to_string();
-        let l = Lexer::new(input);
-        let mut p = Parser::new(l);
-        let program = p.parse_program();
-        check_parse_errors(&p);
+        for &(input, expected) in [
+            ("return 10;", &IntegerLiteral{
+                token: Token{ typ: INT, literal: "10".to_string()},
+                value: 10,
+            }),
+            ("return a;", &IdentifierExpression{
+                token: Token{ typ: IDENT, literal: "a".to_string()},
+                value: "a".to_string(),
+            })
+        ].iter() {
+            let l = Lexer::new(input.to_string());
+            let mut p = Parser::new(l);
+            let program = p.parse_program();
+            check_parse_errors(&p);
 
-        assert_eq!(3, program.statements.len());
-
-        for stmt in program.statements {
-            match stmt {
-                ReturnStatement{token, ..} => {
-                    assert_eq!("return", token.literal);
-                },
-                _ => panic!("stmt not ast::StatementNode::ReturnStatement, got={}", stmt.token_literal()),
-            }
+            assert_eq!(1, program.statements.len());
+            let (t, ret) = if let Some(ReturnStatement{token, return_value, ..}) = program.statements.get(0) {
+                (token, return_value.as_ref().unwrap())
+            } else {
+                panic!("stmt is not ReturnStatement");
+            };
+            assert_eq!("return", t.literal);
+            assert_eq!(expected, ret);
         }
     }
 
