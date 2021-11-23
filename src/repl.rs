@@ -4,7 +4,8 @@ use std::io;
 // Internal
 use crate::{
     lexer::Lexer,
-    token::TokenType::*,
+    parser::Parser,
+    ast::Node,
 };
 
 pub fn start() {
@@ -12,12 +13,21 @@ pub fn start() {
         println!(">> ");
         let mut line = String::new();
         io::stdin().read_line(&mut line).expect("Failed to read line.");
-        let mut l = Lexer::new(line);
+        let l = Lexer::new(line);
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
 
-        let mut tok = l.next_token();
-        while tok.typ != EOF {
-            println!("{:?}", tok);
-            tok = l.next_token();
+        if p.errors.len() != 0 {
+            print_parse_errors(&p.errors);
+            continue;
         }
+        println!("{}", program.to_string());
+    }
+}
+
+fn print_parse_errors(errors: &Vec<String>) {
+    println!("Woops! parser errors:");
+    for e in errors {
+        println!("\t{}", e);
     }
 }

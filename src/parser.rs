@@ -59,7 +59,7 @@ pub struct Parser {
     l: Lexer,
     cur_token: Token,
     peek_token: Token,
-    errors: Vec<String>,
+    pub errors: Vec<String>,
 }
 
 impl Parser {
