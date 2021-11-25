@@ -6,7 +6,11 @@ pub enum ObjectType {
 }
 
 pub enum Object {
-    Integer(value: i64),
-    Boolean(value: bool),
+    Integer {
+        value: i64,
+    },
+    Boolean {
+        value: bool,
+    },
     Null,
 }
