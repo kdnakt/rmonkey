@@ -2,6 +2,7 @@
 use crate::{
     ast::StatementNode::*,
     ast::ExpressionNode::*,
+    ast::AstNode::*,
     token::Token,
 };
 
@@ -10,93 +11,113 @@ pub trait Node {
     fn to_string(&self) -> String;
 }
 
-#[derive(Debug, PartialEq)]
-pub enum ExpressionNode {
+pub enum AstNode<'a> {
+    Statement {
+        node: StatementNode<'a>,
+    },
+    Expression {
+        node: ExpressionNode<'a>,
+    },
+    Program {
+        statements: Vec<StatementNode<'a>>,
+    },
+}
+
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub enum ExpressionNode<'a> {
     IdentifierExpression {
-        token: Token,
-        value: String
+        token: &'a Token<'a>,
+        value: &'a String
     },
     IntegerLiteral {
-        token: Token,
+        token: &'a Token<'a>,
         value: i64,
     },
     PrefixExpression {
-        token: Token,
-        operator: String,
-        right: Box<Option<ExpressionNode>>,
+        token: &'a Token<'a>,
+        operator: &'a String,
+        right: &'a Option<ExpressionNode<'a>>,
     },
     InfixExpression {
-        token: Token,
-        left: Box<Option<ExpressionNode>>,
-        operator: String,
-        right: Box<Option<ExpressionNode>>,
+        token: &'a Token<'a>,
+        left: &'a Option<ExpressionNode<'a>>,
+        operator: &'a String,
+        right: &'a Option<ExpressionNode<'a>>,
     },
     Boolean {
-        token: Token,
+        token: &'a Token<'a>,
         value: bool,
     },
     IfExpression {
-        token: Token,
-        condition: Box<Option<ExpressionNode>>,
-        consequence: Box<StatementNode>, // BlockStatement
-        alternative: Box<Option<StatementNode>>, // BlockStatement
+        token: &'a Token<'a>,
+        condition: &'a Option<ExpressionNode<'a>>,
+        consequence: &'a StatementNode<'a>, // BlockStatement
+        alternative: &'a Option<StatementNode<'a>>, // BlockStatement
     },
     FunctionLiteral {
-        token: Token,
-        parameters: Vec<ExpressionNode>,
-        body: Box<StatementNode>, // BlockStatement
+        token: &'a Token<'a>,
+        parameters: &'a Vec<ExpressionNode<'a>>,
+        body: &'a StatementNode<'a>, // BlockStatement
     },
     CallExpression {
-        token: Token,
-        function: Box<Option<ExpressionNode>>, // Identifier or FunctionLiteral
-        arguments: Vec<ExpressionNode>,
+        token: &'a Token<'a>,
+        function: &'a Option<ExpressionNode<'a>>, // Identifier or FunctionLiteral
+        arguments: &'a Vec<ExpressionNode<'a>>,
     },
 }
 
-#[derive(Debug, PartialEq)]
-pub enum StatementNode {
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub enum StatementNode<'a> {
     LetStatement {
-        token: Token,
-        name: ExpressionNode, // Identifier,
-        value: Option<ExpressionNode>,
+        token: &'a Token<'a>,
+        name: ExpressionNode<'a>, // Identifier,
+        value: Option<ExpressionNode<'a>>,
     },
     ReturnStatement {
-        token: Token,
-        return_value: Option<ExpressionNode>,
+        token: &'a Token<'a>,
+        return_value: Option<ExpressionNode<'a>>,
     },
     ExpressionStatement {
-        token: Token,
-        expression: Option<ExpressionNode>,
+        token: &'a Token<'a>,
+        expression: Option<ExpressionNode<'a>>,
     },
     BlockStatement {
-        token: Token,
-        statements: Vec<StatementNode>,
+        token: &'a Token<'a>,
+        statements: &'a Vec<StatementNode<'a>>,
     },
 }
 
-pub struct Program {
-    pub statements: Vec<StatementNode>,
-}
-
-impl Node for Program {
+impl Node for AstNode<'_> {
     fn token_literal(&self) -> String {
-        if self.statements.len() > 0 {
-            self.statements.first().unwrap().token_literal()
-        } else {
-            "".to_string()
+        match self {
+            Program{statements, ..} => {
+                if statements.len() > 0 {
+                    statements.first().unwrap().token_literal()
+                } else {
+                    "".to_string()
+                }
+            },
+            Statement{node, ..} => node.token_literal(),
+            Expression{node, ..} => node.token_literal(),
         }
     }
 
     fn to_string(&self) -> String {
-        let mut out = String::new();
-        for s in &self.statements {
-            out.push_str(&s.to_string());
+        match self {
+            Program{statements, ..} => {
+                let mut out = String::new();
+                for s in statements {
+                    out.push_str(&s.to_string());
+                }
+                out
+            },
+            Statement{node, ..} => node.to_string(),
+            Expression{node, ..} => node.to_string(),
         }
-        out
     }
 }
 
-impl Node for StatementNode {
+impl Node for StatementNode<'_> {
     fn token_literal(&self) -> String {
         let t = match self {
             LetStatement{token, ..} => token,
@@ -134,7 +155,7 @@ impl Node for StatementNode {
             },
             BlockStatement{statements, ..} => {
                 let mut buf = String::new();
-                for s in statements {
+                for s in *statements {
                     buf.push_str(&s.to_string());
                 }
                 return buf;
@@ -146,7 +167,7 @@ impl Node for StatementNode {
 
 }
 
-impl Node for ExpressionNode {
+impl Node for ExpressionNode<'_> {
     fn token_literal(&self) -> String {
         let t = match self {
             IdentifierExpression{token, ..} => token,
@@ -249,14 +270,14 @@ mod tests {
     fn it_returns_string() {
         let mut statements = Vec::new();
         let let_stmt = LetStatement {
-            token: Token { typ: LET, literal: "let".to_string() },
+            token: &Token { typ: &LET, literal: &"let".to_string() },
             name: IdentifierExpression {
-                token: Token { typ: IDENT, literal: "myVar".to_string() },
-                value: "myVar".to_string(),
+                token: &Token { typ: &IDENT, literal: &"myVar".to_string() },
+                value: &"myVar".to_string(),
             },
             value: Some(IdentifierExpression {
-                token: Token { typ: IDENT, literal: "anotherVar".to_string() },
-                value: "anotherVar".to_string(),
+                token: &Token { typ: &IDENT, literal: &"anotherVar".to_string() },
+                value: &"anotherVar".to_string(),
             }),
         };
         statements.push(let_stmt);

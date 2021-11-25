@@ -13,8 +13,8 @@ pub fn start() {
         println!(">> ");
         let mut line = String::new();
         io::stdin().read_line(&mut line).expect("Failed to read line.");
-        let l = Lexer::new(line);
-        let mut p = Parser::new(l);
+        let mut l = Lexer::new(&line);
+        let mut p = Parser::new(&mut l);
         let program = p.parse_program();
 
         if p.errors.len() != 0 {

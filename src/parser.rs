@@ -1,6 +1,7 @@
 // Internal
 use crate::{
     ast::*,
+    ast::AstNode::*,
     ast::StatementNode::*,
     ast::ExpressionNode::*,
     lexer::Lexer,
@@ -36,7 +37,7 @@ enum Precedence {
     CALL,
 }
 
-fn precedence(t: TokenType) -> Precedence {
+fn precedence(t: &TokenType) -> Precedence {
     match t {
         EQ => EQUALS,
         NOTEQ => EQUALS,
@@ -55,15 +56,15 @@ enum PrefixParseFn {
     ParseIdentifier,
 }
 
-pub struct Parser {
-    l: Lexer,
-    cur_token: Token,
-    peek_token: Token,
+pub struct Parser<'a> {
+    l: &'a Lexer<'a>,
+    cur_token: Token<'a>,
+    peek_token: Token<'a>,
     pub errors: Vec<String>,
 }
 
-impl Parser {
-    pub fn new(mut l: Lexer) -> Parser {
+impl <'a> Parser<'a> {
+    pub fn new(l: &'a mut Lexer<'a>) -> Parser<'a> {
         let cur_token = l.next_token();
         let peek_token = l.next_token();
         Parser {
@@ -74,9 +75,9 @@ impl Parser {
         }
     }
 
-    pub fn parse_program(&mut self) -> Program {
+    pub fn parse_program(&mut self) -> AstNode {
         let mut statements = Vec::new();
-        while self.cur_token.typ != EOF {
+        while self.cur_token.typ != &EOF {
             let stmt = self.parse_statement();
             match stmt {
                 None => (),
@@ -87,7 +88,7 @@ impl Parser {
         Program { statements: statements }
     }
 
-    fn parse_expression(&mut self, p: Precedence) -> Option<ExpressionNode> {
+    fn parse_expression(&mut self, p: Precedence) -> Option<ExpressionNode<'a>> {
         let trace = trace("parse_expression");
         defer!(untrace(trace));
         let prefix = self.parse_prefix(self.cur_token.typ);
@@ -100,7 +101,7 @@ impl Parser {
         };
 
         let precedence = p as i32;
-        while !self.peek_token_is(SEMICOLON) && precedence < (self.peek_precedence() as i32) {
+        while !self.peek_token_is(&SEMICOLON) && precedence < (self.peek_precedence() as i32) {
             let (left, is_infix) = match self.peek_token.typ {
                 PLUS => (left_exp, true),
                 MINUS => (left_exp, true),
@@ -117,15 +118,15 @@ impl Parser {
             };
             self.next_token();
             left_exp = if is_infix {
-                self.parse_infix_expression(left)
+                self.parse_infix_expression(&left)
             } else {
-                self.parse_call_expression(left)
+                self.parse_call_expression(&left)
             }
         }
         return left_exp;
     }
 
-    fn parse_infix_expression(&mut self, left: Option<ExpressionNode>) -> Option<ExpressionNode> {
+    fn parse_infix_expression(&mut self, left: &'a Option<ExpressionNode>) -> Option<ExpressionNode<'a>> {
         let trace = trace("parse_infix_expression");
         defer!(untrace(trace));
         let token = self.cur_token.clone();
@@ -134,26 +135,26 @@ impl Parser {
         self.next_token();
         let right = self.parse_expression(precedence);
         Some(InfixExpression {
-            token,
-            left: Box::new(left),
-            operator,
-            right: Box::new(right),
+            token: &token,
+            left: left,
+            operator: &operator,
+            right: &right,
         })
     }
 
-    fn parse_call_expression(&mut self, left: Option<ExpressionNode>) -> Option<ExpressionNode> {
+    fn parse_call_expression(&mut self, left: &'a Option<ExpressionNode>) -> Option<ExpressionNode<'a>> {
         let trace = trace("parse_call_expression");
         defer!(untrace(trace));
         let arguments = self.parse_call_arguments();
         Some(CallExpression {
-            token: self.cur_token.clone(),
-            function: Box::new(left),
-            arguments,
+            token: &self.cur_token.clone(),
+            function: &left,
+            arguments: &arguments,
         })
     }
 
-    fn parse_call_arguments(&mut self) -> Vec<ExpressionNode> {
-        if self.peek_token_is(RPAREN) {
+    fn parse_call_arguments(&mut self) -> Vec<ExpressionNode<'a>> {
+        if self.peek_token_is(&RPAREN) {
             self.next_token();
             return Vec::new();
         }
@@ -166,7 +167,7 @@ impl Parser {
             None => (),
         }
 
-        while self.peek_token_is(COMMA) {
+        while self.peek_token_is(&COMMA) {
             self.next_token();
             self.next_token();
             let arg = self.parse_expression(LOWEST);
@@ -176,7 +177,7 @@ impl Parser {
             }
         }
 
-        if !self.expect_peek(RPAREN) {
+        if !self.expect_peek(&RPAREN) {
             return Vec::new();
         }
         args
@@ -186,7 +187,7 @@ impl Parser {
         precedence(self.cur_token.typ)
     }
 
-    fn parse_prefix(&mut self, t: TokenType) -> Option<ExpressionNode> {
+    fn parse_prefix(&mut self, t: &'a TokenType) -> Option<ExpressionNode<'a>> {
         match t {
             IDENT => Some(self.parse_identifier_expression()),
             INT => self.parse_integer_literal(),
@@ -201,31 +202,31 @@ impl Parser {
         }
     }
 
-    fn parse_function_expression(&mut self) -> Option<ExpressionNode> {
+    fn parse_function_expression(&mut self) -> Option<ExpressionNode<'a>> {
         let trace = trace("parse_function_expression");
         defer!(untrace(trace));
         let token = self.cur_token.clone();
-        if !self.expect_peek(LPAREN) {
+        if !self.expect_peek(&LPAREN) {
             return None
         }
 
         let parameters = self.parse_function_parameters();
 
-        if !self.expect_peek(LBRACE) {
+        if !self.expect_peek(&LBRACE) {
             return None
         }
         let body = self.parse_block_statement();
         Some(FunctionLiteral{
-            token,
-            parameters,
-            body: Box::new(body),
+            token: &token,
+            parameters: &parameters,
+            body: &body,
         })
     }
 
-    fn parse_function_parameters(&mut self) -> Vec<ExpressionNode> {
+    fn parse_function_parameters(&mut self) -> Vec<ExpressionNode<'a>> {
         let trace = trace("parse_function_parameters");
         defer!(untrace(trace));
-        if self.peek_token_is(RPAREN) {
+        if self.peek_token_is(&RPAREN) {
             self.next_token();
             return Vec::new();
         }
@@ -234,90 +235,90 @@ impl Parser {
         let mut identifiers = Vec::new();
         identifiers.push(self.parse_identifier_expression());
 
-        while self.peek_token_is(COMMA) {
+        while self.peek_token_is(&COMMA) {
             self.next_token();
             self.next_token();
             identifiers.push(self.parse_identifier_expression());
         }
 
-        if !self.expect_peek(RPAREN) {
+        if !self.expect_peek(&RPAREN) {
             return Vec::new();
         }
         identifiers
     }
 
-    fn parse_identifier_expression(&self) -> ExpressionNode {
+    fn parse_identifier_expression(&self) -> ExpressionNode<'a> {
         IdentifierExpression {
-            token: self.cur_token.clone(),
-            value: self.cur_token.literal.to_string(),
+            token: &self.cur_token.clone(),
+            value: &self.cur_token.literal.to_string(),
         }
     }
 
-    fn parse_boolean_expression(&self) -> Option<ExpressionNode> {
+    fn parse_boolean_expression(&self) -> Option<ExpressionNode<'a>> {
         Some(Boolean {
-            token: self.cur_token.clone(),
-            value: self.cur_token_is(TRUE),
+            token: &self.cur_token.clone(),
+            value: self.cur_token_is(&TRUE),
         })
     }
 
-    fn parse_grouped_expression(&mut self) -> Option<ExpressionNode> {
+    fn parse_grouped_expression(&mut self) -> Option<ExpressionNode<'a>> {
         let trace = trace("parse_grouped_expression");
         defer!(untrace(trace));
         self.next_token();
         let exp = self.parse_expression(LOWEST);
-        if !self.expect_peek(RPAREN) {
+        if !self.expect_peek(&RPAREN) {
             None
         } else {
             exp
         }
     }
 
-    fn parse_if_expression(&mut self) -> Option<ExpressionNode> {
+    fn parse_if_expression(&mut self) -> Option<ExpressionNode<'a>> {
         let trace = trace("parse_if_expression");
         defer!(untrace(trace));
         let token = self.cur_token.clone();
-        if !self.expect_peek(LPAREN) {
+        if !self.expect_peek(&LPAREN) {
             return None
         }
         self.next_token();
         let condition = self.parse_expression(LOWEST);
-        if !self.expect_peek(RPAREN) {
+        if !self.expect_peek(&RPAREN) {
             return None
         }
-        if !self.expect_peek(LBRACE) {
+        if !self.expect_peek(&LBRACE) {
             return None
         }
         let consequence = self.parse_block_statement();
 
-        if self.peek_token_is(ELSE) {
+        if self.peek_token_is(&ELSE) {
             self.next_token();
-            if !self.expect_peek(LBRACE) {
+            if !self.expect_peek(&LBRACE) {
                 return None
             }
             Some(IfExpression {
-                token,
-                condition: Box::new(condition),
-                consequence: Box::new(consequence),
-                alternative: Box::new(Some(self.parse_block_statement())),
+                token: &token,
+                condition: &condition,
+                consequence: &consequence,
+                alternative: &Some(self.parse_block_statement()),
             })
         } else {
             Some(IfExpression {
-                token,
-                condition: Box::new(condition),
-                consequence: Box::new(consequence),
-                alternative: Box::new(None),
+                token: &token,
+                condition: &condition,
+                consequence: &consequence,
+                alternative: &None,
             })
         }
     }
 
-    fn parse_block_statement(&mut self) -> StatementNode {
+    fn parse_block_statement(&mut self) -> StatementNode<'a> {
         let trace = trace("parse_block_statement");
         defer!(untrace(trace));
         let token = self.cur_token.clone();
         let mut statements = Vec::new();
         self.next_token();
 
-        while !self.cur_token_is(RBRACE) && !self.cur_token_is(EOF) {
+        while !self.cur_token_is(&RBRACE) && !self.cur_token_is(&EOF) {
             let stmt = self.parse_statement();
             match stmt {
                 Some(s) => statements.push(s),
@@ -327,12 +328,12 @@ impl Parser {
         }
 
         BlockStatement {
-            token,
-            statements,
+            token: &token,
+            statements: &statements,
         }
     }
 
-    fn parse_prefix_expression(&mut self) -> Option<ExpressionNode> {
+    fn parse_prefix_expression(&mut self) -> Option<ExpressionNode<'a>> {
         let trace = trace("parse_prefix_expression");
         defer!(untrace(trace));
         let token = self.cur_token.clone();
@@ -340,13 +341,13 @@ impl Parser {
         self.next_token();
         let right = self.parse_expression(PREFIX);
         Some(PrefixExpression {
-            token,
-            operator,
-            right: Box::new(right),
+            token: &token,
+            operator: &operator,
+            right: &right,
         })
     }
 
-    fn parse_integer_literal(&mut self) -> Option<ExpressionNode> {
+    fn parse_integer_literal(&mut self) -> Option<ExpressionNode<'a>> {
         let trace = trace("parse_integer_literal");
         defer!(untrace(trace));
         let token = self.cur_token.clone();
@@ -357,19 +358,19 @@ impl Parser {
             return None;
         }
         let value: i64 = result.unwrap();
-        Some(IntegerLiteral { token, value })
+        Some(IntegerLiteral { token: &token, value })
     }
 
     fn peek_precedence(&self) -> Precedence {
         precedence(self.peek_token.typ)
     }
 
-    fn no_prefix_parse_fn_error(&mut self, t: TokenType) {
+    fn no_prefix_parse_fn_error(&mut self, t: &TokenType) {
         let msg = format!("no prefix parse function for {} found", t);
         self.errors.push(msg);
     }
 
-    fn parse_statement(&mut self) -> Option<StatementNode> {
+    fn parse_statement(&mut self) -> Option<StatementNode<'a>> {
         match self.cur_token.typ {
             LET => self.parse_let_statement(),
             RETURN => self.parse_return_statement(),
@@ -377,62 +378,62 @@ impl Parser {
         }
     }
 
-    fn parse_let_statement(&mut self) -> Option<StatementNode> {
+    fn parse_let_statement(&mut self) -> Option<StatementNode<'a>> {
         let token = self.cur_token.clone();
-        if !self.expect_peek(IDENT) {
+        if !self.expect_peek(&IDENT) {
             return None
         }
 
         let name = self.parse_identifier_expression();
 
-        if !self.expect_peek(ASSIGN) {
+        if !self.expect_peek(&ASSIGN) {
             return None
         }
 
         self.next_token();
         let value = self.parse_expression(LOWEST);
 
-        while !self.cur_token_is(SEMICOLON) {
+        while !self.cur_token_is(&SEMICOLON) {
             self.next_token();
         }
 
-        return Some(LetStatement { token, name, value })
+        return Some(LetStatement { token: &token, name, value })
     }
 
-    fn parse_return_statement(&mut self) -> Option<StatementNode> {
+    fn parse_return_statement(&mut self) -> Option<StatementNode<'a>> {
         let token = self.cur_token.clone();
 
         self.next_token();
 
         let return_value = self.parse_expression(LOWEST);
 
-        while !self.cur_token_is(SEMICOLON) {
+        while !self.cur_token_is(&SEMICOLON) {
             self.next_token();
         }
 
-        return Some(ReturnStatement { token, return_value })
+        return Some(ReturnStatement { token: &token, return_value })
     }
 
-    fn parse_expression_statement(&mut self) -> Option<StatementNode> {
+    fn parse_expression_statement(&mut self) -> Option<StatementNode<'a>> {
         let trace = trace("parse_expression_statement");
         defer!(untrace(trace));
         let token = self.cur_token.clone();
         let expression = self.parse_expression(LOWEST);
-        if self.peek_token_is(SEMICOLON) {
+        if self.peek_token_is(&SEMICOLON) {
             self.next_token();
         }
-        Some(ExpressionStatement { token, expression })
+        Some(ExpressionStatement { token: &token, expression })
     }
 
-    fn cur_token_is(&self, t: TokenType) -> bool {
+    fn cur_token_is(&self, t: &TokenType) -> bool {
         self.cur_token.typ == t
     }
 
-    fn peek_token_is(&self, t: TokenType) -> bool {
+    fn peek_token_is(&self, t: &TokenType) -> bool {
         self.peek_token.typ == t
     }
 
-    fn expect_peek(&mut self, t: TokenType) -> bool {
+    fn expect_peek(&mut self, t: &TokenType) -> bool {
         if self.peek_token_is(t) {
             self.next_token();
             true
@@ -447,7 +448,7 @@ impl Parser {
         self.peek_token = self.l.next_token();
     }
 
-    fn peek_error(&mut self, t: TokenType) {
+    fn peek_error(&mut self, t: &TokenType) {
         let msg = format!("expected next token to be {}, got {} instead", t, self.peek_token.typ);
         self.errors.push(msg);
     }
@@ -458,6 +459,7 @@ mod tests {
     use super::Parser;
     use crate::lexer::Lexer;
     use crate::ast::*;
+    use crate::ast::AstNode::*;
     use crate::ast::StatementNode::*;
     use crate::ast::ExpressionNode::*;
     use crate::token::Token;
@@ -466,25 +468,30 @@ mod tests {
     fn it_parses_let_statements() {
         for &(input, ident, expected) in [
             ("let x = 5;", "x", &IntegerLiteral{
-                token: Token{ typ: INT, literal: "5".to_string()},
+                token: &Token{ typ: &INT, literal: &"5".to_string()},
                 value: 5,
             }),
             ("let y = true;", "y", &Boolean{
-                token: Token{ typ: TRUE, literal: "true".to_string()},
+                token: &Token{ typ: &TRUE, literal: &"true".to_string()},
                 value: true,
             }),
             ("let foobar = y;", "foobar", &IdentifierExpression{
-                token: Token{ typ: IDENT, literal: "y".to_string()},
-                value: "y".to_string(),
+                token: &Token{ typ: &IDENT, literal: &"y".to_string()},
+                value: &"y".to_string(),
             }),
         ].iter() {
-            let l = Lexer::new(input.to_string());
+            let l = Lexer::new(&input.to_string());
             let mut p = Parser::new(l);
             let program = p.parse_program();
             check_parse_errors(&p);
 
-            assert_eq!(1, program.statements.len());
-            let stmt = program.statements.get(0).unwrap();
+            let statements = if let Program{statements, ..} = program {
+                statements
+            } else {
+                panic!("program is not Program");
+            };
+            assert_eq!(1, statements.len());
+            let stmt = statements.get(0).unwrap();
             test_let_statement(stmt, ident.to_string());
             let actual = if let LetStatement{value, ..} = stmt {
                 value.as_ref().unwrap()
@@ -515,21 +522,26 @@ mod tests {
     fn it_parses_return_statements() {
         for &(input, expected) in [
             ("return 10;", &IntegerLiteral{
-                token: Token{ typ: INT, literal: "10".to_string()},
+                token: &Token{ typ: &INT, literal: &"10".to_string()},
                 value: 10,
             }),
             ("return a;", &IdentifierExpression{
-                token: Token{ typ: IDENT, literal: "a".to_string()},
-                value: "a".to_string(),
+                token: &Token{ typ: &IDENT, literal: &"a".to_string()},
+                value: &"a".to_string(),
             })
         ].iter() {
-            let l = Lexer::new(input.to_string());
+            let l = Lexer::new(&input.to_string());
             let mut p = Parser::new(l);
             let program = p.parse_program();
             check_parse_errors(&p);
 
-            assert_eq!(1, program.statements.len());
-            let (t, ret) = if let Some(ReturnStatement{token, return_value, ..}) = program.statements.get(0) {
+            let statements = if let Program{statements, ..} = program {
+                statements
+            } else {
+                panic!("program is not Program");
+            };
+            assert_eq!(1, statements.len());
+            let (t, ret) = if let Some(ReturnStatement{token, return_value, ..}) = statements.get(0) {
                 (token, return_value.as_ref().unwrap())
             } else {
                 panic!("stmt is not ReturnStatement");
@@ -542,14 +554,19 @@ mod tests {
     #[test]
     fn it_parses_identifier_expression() {
         let input = "foobar;".to_string();
-        let l = Lexer::new(input);
+        let l = Lexer::new(&input);
         let mut p = Parser::new(l);
         let program = p.parse_program();
         check_parse_errors(&p);
 
-        assert_eq!(1, program.statements.len());
+        let statements = if let Program{statements, ..} = program {
+            statements
+        } else {
+            panic!("program is not Program");
+        };
+        assert_eq!(1, statements.len());
 
-        let stmt = program.statements.get(0);
+        let stmt = statements.get(0);
         let expression = if let Some(ExpressionStatement{expression, ..}) = stmt {
             expression
         } else {
@@ -574,14 +591,19 @@ mod tests {
     #[test]
     fn it_parses_integer_literal_expression() {
         let input = "5;".to_string();
-        let l = Lexer::new(input);
+        let l = Lexer::new(&input);
         let mut p = Parser::new(l);
         let program = p.parse_program();
         check_parse_errors(&p);
 
-        assert_eq!(1, program.statements.len());
+        let statements = if let Program{statements, ..} = program {
+            statements
+        } else {
+            panic!("program is not Program");
+        };
+        assert_eq!(1, statements.len());
 
-        let stmt = program.statements.get(0);
+        let stmt = statements.get(0);
         let expression = if let Some(ExpressionStatement{expression, ..}) = stmt {
             expression
         } else {
@@ -609,16 +631,21 @@ mod tests {
             ("!5","!",5),
             ("-15","-",15),
         ].iter() {
-            let l = Lexer::new(input.to_string());
+            let l = Lexer::new(&input.to_string());
             let mut p = Parser::new(l);
             let program = p.parse_program();
             check_parse_errors(&p);
 
-            if program.statements.len() != 1 {
+            let statements = if let Program{statements, ..} = program {
+                statements
+            } else {
+                panic!("program is not Program");
+            };
+            if statements.len() != 1 {
                 panic!("program.statements does not contain {} statements. got={}",
-                        1, program.statements.len());
+                        1, statements.len());
             }
-            let stmt = program.statements.get(0);
+            let stmt = statements.get(0);
             let expression = if let Some(ExpressionStatement{expression, ..}) = stmt {
                 expression
             } else {
@@ -647,16 +674,21 @@ mod tests {
             ("5 == 5", 5, "==", 5),
             ("5 != 5", 5, "!=", 5),
         ].iter() {
-            let l = Lexer::new(input.to_string());
+            let l = Lexer::new(&input.to_string());
             let mut p = Parser::new(l);
             let program = p.parse_program();
             check_parse_errors(&p);
 
-            if program.statements.len() != 1 {
+            let statements = if let Program{statements, ..} = program {
+                statements
+            } else {
+                panic!("program is not Program");
+            };
+            if statements.len() != 1 {
                 panic!("{}: program.statements does not contain {} statements. got={}",
-                        input, 1, program.statements.len());
+                        input, 1, statements.len());
             }
-            let stmt = program.statements.get(0);
+            let stmt = statements.get(0);
             let expression = if let Some(ExpressionStatement{expression, ..}) = stmt {
                 expression
             } else {
@@ -680,16 +712,21 @@ mod tests {
             ("true == true", true, "==", true),
             ("true != false", true, "!=", false),
         ].iter() {
-            let l = Lexer::new(input.to_string());
+            let l = Lexer::new(&input.to_string());
             let mut p = Parser::new(l);
             let program = p.parse_program();
             check_parse_errors(&p);
 
-            if program.statements.len() != 1 {
+            let statements = if let Program{statements, ..} = program {
+                statements
+            } else {
+                panic!("program is not Program");
+            };
+            if statements.len() != 1 {
                 panic!("{}: program.statements does not contain {} statements. got={}",
-                        input, 1, program.statements.len());
+                        input, 1, statements.len());
             }
-            let stmt = program.statements.get(0);
+            let stmt = statements.get(0);
             let expression = if let Some(ExpressionStatement{expression, ..}) = stmt {
                 expression
             } else {
@@ -766,7 +803,7 @@ mod tests {
                 "add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))",
             ),
         ].iter() {
-            let l = Lexer::new(input.to_string());
+            let l = Lexer::new(&input.to_string());
             let mut p = Parser::new(l);
             let program = p.parse_program();
             check_parse_errors(&p);
@@ -781,16 +818,21 @@ mod tests {
             ("true", true),
             ("false", false),
         ].iter() {
-            let l = Lexer::new(input.to_string());
+            let l = Lexer::new(&input.to_string());
             let mut p = Parser::new(l);
             let program = p.parse_program();
             check_parse_errors(&p);
 
-            if program.statements.len() != 1 {
+            let statements = if let Program{statements, ..} = program {
+                statements
+            } else {
+                panic!("program is not Program");
+            };
+            if statements.len() != 1 {
                 panic!("{}: program.statements does not contain {} statements. got={}",
-                        input, 1, program.statements.len());
+                        input, 1, statements.len());
             }
-            let stmt = program.statements.get(0);
+            let stmt = statements.get(0);
             let expression = if let Some(ExpressionStatement{expression, ..}) = stmt {
                 expression
             } else {
@@ -814,14 +856,19 @@ mod tests {
     #[test]
     fn it_parses_if_statement() {
         let input = "if (x < y) { x }".to_string();
-        let l = Lexer::new(input);
+        let l = Lexer::new(&input);
         let mut p = Parser::new(l);
         let program = p.parse_program();
         check_parse_errors(&p);
 
-        assert_eq!(1, program.statements.len());
+        let statements = if let Program{statements, ..} = program {
+            statements
+        } else {
+            panic!("program is not Program");
+        };
+        assert_eq!(1, statements.len());
 
-        let stmt = program.statements.get(0);
+        let stmt = statements.get(0);
         let expression = if let Some(ExpressionStatement{expression, ..}) = stmt {
             expression
         } else {
@@ -843,7 +890,7 @@ mod tests {
         assert_eq!(op, "<");
         test_identifier(right, "y");
 
-        let statements = if let BlockStatement{statements, ..} = cons.as_ref() {
+        let statements = if let BlockStatement{statements, ..} = cons {
             statements
         } else {
             panic!("cons is not BlockStatement");
@@ -866,14 +913,19 @@ mod tests {
     #[test]
     fn it_parses_function_literal() {
         let input = "fn(x, y) { x + y; }".to_string();
-        let l = Lexer::new(input);
+        let l = Lexer::new(&input);
         let mut p = Parser::new(l);
         let program = p.parse_program();
         check_parse_errors(&p);
 
-        assert_eq!(1, program.statements.len());
+        let statements = if let Program{statements, ..} = program {
+            statements
+        } else {
+            panic!("program is not Program");
+        };
+        assert_eq!(1, statements.len());
 
-        let stmt = program.statements.get(0);
+        let stmt = statements.get(0);
         let expression = if let Some(ExpressionStatement{expression, ..}) = stmt {
             expression
         } else {
@@ -889,7 +941,7 @@ mod tests {
         test_ident(&params.get(0), "x");
         test_ident(&params.get(1), "y");
 
-        let statements = if let BlockStatement{statements, ..} = body.as_ref() {
+        let statements = if let BlockStatement{statements, ..} = body {
             statements
         } else {
             panic!("body is not BlockStatement");
@@ -920,12 +972,17 @@ mod tests {
             ("fn(x) {};", &["x"].to_vec()),
             ("fn(x, y, z) {};", &["x", "y", "z"].to_vec()),
         ].iter() {
-            let l = Lexer::new(input.to_string());
+            let l = Lexer::new(&input.to_string());
             let mut p = Parser::new(l);
             let program = p.parse_program();
             check_parse_errors(&p);
 
-            let stmt = program.statements.get(0);
+            let statements = if let Program{statements, ..} = program {
+                statements
+            } else {
+                panic!("program is not Program");
+            };
+            let stmt = statements.get(0);
             let expression = if let Some(ExpressionStatement{expression, ..}) = stmt {
                 expression
             } else {
@@ -947,14 +1004,19 @@ mod tests {
     #[test]
     fn it_parses_call_expression() {
         let input = "add(1, 2 * 3, 4 + 5);".to_string();
-        let l = Lexer::new(input);
+        let l = Lexer::new(&input);
         let mut p = Parser::new(l);
         let program = p.parse_program();
         check_parse_errors(&p);
 
-        assert_eq!(1, program.statements.len());
+        let statements = if let Program{statements, ..} = program {
+            statements
+        } else {
+            panic!("program is not Program");
+        };
+        assert_eq!(1, statements.len());
 
-        let stmt = program.statements.get(0);
+        let stmt = statements.get(0);
         let expression = if let Some(ExpressionStatement{expression, ..}) = stmt {
             expression
         } else {
@@ -997,7 +1059,7 @@ mod tests {
         test_integer_literal(&right, 5);
     }
 
-    fn test_identifier(exp: &Box<Option<ExpressionNode>>, expected: &str) {
+    fn test_identifier(exp: &Option<ExpressionNode>, expected: &str) {
         let ident = if let Some(e) = exp.as_ref() { e } else { panic!("exp is None"); };
         assert_eq!(expected, ident.token_literal());
         let value = if let IdentifierExpression{value, ..} = ident {
@@ -1019,7 +1081,7 @@ mod tests {
         assert_eq!(expected, value);
     }
 
-    fn test_integer_literal(il: &Box<Option<ExpressionNode>>, expected: i64) {
+    fn test_integer_literal(il: &Option<ExpressionNode>, expected: i64) {
         let il = if let Some(e) = il.as_ref() { e } else { panic!("il is None") };
         assert_eq!(format!("{}", expected), il.token_literal());
 
@@ -1031,7 +1093,7 @@ mod tests {
         assert_eq!(expected, *value);
     }
 
-    fn test_boolean_literal(exp: &Box<Option<ExpressionNode>>, expected: bool) {
+    fn test_boolean_literal(exp: &Option<ExpressionNode>, expected: bool) {
         let bo = if let Some(e) = exp.as_ref() { e } else { panic!("exp is None") };
         assert_eq!(format!("{}", expected), bo.token_literal());
 

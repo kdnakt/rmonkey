@@ -8,15 +8,15 @@ use crate::{
     token::TokenType::*
 };
 
-pub struct Lexer {
-    input: String,
+pub struct Lexer<'a> {
+    input: &'a String,
     pos: usize,
     read_pos: usize,
     ch: u8,
 }
 
-fn new_token(typ: TokenType, ch: char) -> Token {
-    Token { typ: typ, literal: ch.to_string() }
+fn new_token<'a>(typ: &'a TokenType, ch: char) -> Token<'a> {
+    Token { typ: typ, literal: &ch.to_string() }
 }
 
 fn is_letter(ch: char) -> bool {
@@ -31,61 +31,61 @@ fn is_whitespace(ch: char) -> bool {
     ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r'
 }
 
-impl Lexer {
-    pub fn new(input: String) -> Lexer {
+impl <'a> Lexer<'a> {
+    pub fn new(input: &'a String) -> Lexer<'a> {
         let mut l = Lexer { input: input, pos: 0, read_pos: 0, ch: 0 };
         l.read_char();
         l
     }
 
-    pub fn next_token(&mut self) -> Token {
+    pub fn next_token(&mut self) -> Token<'a> {
         self.skip_whitespace();
         let ch = self.ch as char;
         let tok = match self.ch {
-            0 => Token { typ: EOF, literal: "".to_string() },
+            0 => Token { typ: &EOF, literal: &"".to_string() },
             _ => match ch {
                 '=' => {
                     if '=' == self.peek_char() as char {
                         self.read_char();
                         let mut literal = String::from(ch);
                         literal.push(self.ch as char);
-                        Token { typ: EQ, literal: literal}
+                        Token { typ: &EQ, literal: &literal}
                     } else {
-                        new_token(ASSIGN, ch)
+                        new_token(&ASSIGN, ch)
                     }
                 },
-                '-' => new_token(MINUS, ch),
+                '-' => new_token(&MINUS, ch),
                 '!' => {
                     if '=' == self.peek_char() as char {
                         self.read_char();
                         let mut literal = String::from(ch);
                         literal.push(self.ch as char);
-                        Token { typ: NOTEQ, literal: literal}
+                        Token { typ: &NOTEQ, literal: &literal}
                     } else {
-                        new_token(BANG, ch)
+                        new_token(&BANG, ch)
                     }
                 },
-                '/' => new_token(SLASH, ch),
-                '*' => new_token(ASTERISK, ch),
-                '<' => new_token(LT, ch),
-                '>' => new_token(GT, ch),
-                ';' => new_token(SEMICOLON, ch),
-                '(' => new_token(LPAREN, ch),
-                ')' => new_token(RPAREN, ch),
-                ',' => new_token(COMMA, ch),
-                '+' => new_token(PLUS, ch),
-                '{' => new_token(LBRACE, ch),
-                '}' => new_token(RBRACE, ch),
+                '/' => new_token(&SLASH, ch),
+                '*' => new_token(&ASTERISK, ch),
+                '<' => new_token(&LT, ch),
+                '>' => new_token(&GT, ch),
+                ';' => new_token(&SEMICOLON, ch),
+                '(' => new_token(&LPAREN, ch),
+                ')' => new_token(&RPAREN, ch),
+                ',' => new_token(&COMMA, ch),
+                '+' => new_token(&PLUS, ch),
+                '{' => new_token(&LBRACE, ch),
+                '}' => new_token(&RBRACE, ch),
                 _ => {
                     if is_letter(ch) {
                         let ident = self.read_identifier();
                         let typ = token::lookup_ident(&ident);
-                        return Token { typ: typ, literal: ident }
+                        return Token { typ: &typ, literal: &ident }
                     } else if is_digit(ch) {
                         let number = self.read_number();
-                        return Token { typ: INT, literal: number }
+                        return Token { typ: &INT, literal: &number }
                     } else {
-                        Token { typ: ILLEGAL, literal: ch.to_string() }
+                        Token { typ: &ILLEGAL, literal: &ch.to_string() }
                     }
                 }
             }
@@ -158,7 +158,7 @@ mod tests {
             10 == 10;
             10 != 9;
         ".to_string();
-        let mut l = Lexer::new(input);
+        let mut l = Lexer::new(&input);
         for &(expected_token, expected_literal) in [
             (ASSIGN, "="),
             (PLUS, "+"),
