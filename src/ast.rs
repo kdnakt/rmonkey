@@ -1,5 +1,6 @@
 // Internal
 use crate::{
+    ast::AstNode::*,
     ast::StatementNode::*,
     ast::ExpressionNode::*,
     token::Token,
@@ -8,6 +9,18 @@ use crate::{
 pub trait Node {
     fn token_literal(&self) -> String;
     fn to_string(&self) -> String;
+}
+
+pub enum AstNode {
+    Statement {
+        node: StatementNode,
+    },
+    Expression {
+        node: ExpressionNode,
+    },
+    Program {
+        statements: Vec<StatementNode>,
+    },
 }
 
 #[derive(Debug, PartialEq)]
@@ -74,25 +87,33 @@ pub enum StatementNode {
     },
 }
 
-pub struct Program {
-    pub statements: Vec<StatementNode>,
-}
-
-impl Node for Program {
+impl Node for AstNode {
     fn token_literal(&self) -> String {
-        if self.statements.len() > 0 {
-            self.statements.first().unwrap().token_literal()
-        } else {
-            "".to_string()
+        match self {
+            Program{statements, ..} => {
+                if statements.len() > 0 {
+                    statements.first().unwrap().token_literal()
+                } else {
+                    "".to_string()
+                }
+            },
+            Statement{node, ..} => node.token_literal(),
+            Expression{node, ..} => node.token_literal(),
         }
     }
 
     fn to_string(&self) -> String {
-        let mut out = String::new();
-        for s in &self.statements {
-            out.push_str(&s.to_string());
+        match self {
+            Program{statements, ..} => {
+                let mut out = String::new();
+                for s in statements {
+                    out.push_str(&s.to_string());
+                }
+                out
+            },
+            Statement{node, ..} => node.to_string(),
+            Expression{node, ..} => node.to_string(),
         }
-        out
     }
 }
 

@@ -1,6 +1,7 @@
 // Internal
 use crate::{
     ast::*,
+    ast::AstNode::*,
     ast::StatementNode::*,
     ast::ExpressionNode::*,
     lexer::Lexer,
@@ -74,7 +75,7 @@ impl Parser {
         }
     }
 
-    pub fn parse_program(&mut self) -> Program {
+    pub fn parse_program(&mut self) -> AstNode {
         let mut statements = Vec::new();
         while self.cur_token.typ != EOF {
             let stmt = self.parse_statement();
@@ -458,6 +459,7 @@ mod tests {
     use super::Parser;
     use crate::lexer::Lexer;
     use crate::ast::*;
+    use crate::ast::AstNode::*;
     use crate::ast::StatementNode::*;
     use crate::ast::ExpressionNode::*;
     use crate::token::Token;
@@ -483,8 +485,13 @@ mod tests {
             let program = p.parse_program();
             check_parse_errors(&p);
 
-            assert_eq!(1, program.statements.len());
-            let stmt = program.statements.get(0).unwrap();
+            let statements = if let Program{statements, ..} = program {
+                statements
+            } else {
+                panic!("program is not Program");
+            };
+            assert_eq!(1, statements.len());
+            let stmt = statements.get(0).unwrap();
             test_let_statement(stmt, ident.to_string());
             let actual = if let LetStatement{value, ..} = stmt {
                 value.as_ref().unwrap()
@@ -528,8 +535,13 @@ mod tests {
             let program = p.parse_program();
             check_parse_errors(&p);
 
-            assert_eq!(1, program.statements.len());
-            let (t, ret) = if let Some(ReturnStatement{token, return_value, ..}) = program.statements.get(0) {
+            let statements = if let Program{statements, ..} = program {
+                statements
+            } else {
+                panic!("program is not Program");
+            };
+            assert_eq!(1, statements.len());
+            let (t, ret) = if let Some(ReturnStatement{token, return_value, ..}) = statements.get(0) {
                 (token, return_value.as_ref().unwrap())
             } else {
                 panic!("stmt is not ReturnStatement");
@@ -547,9 +559,14 @@ mod tests {
         let program = p.parse_program();
         check_parse_errors(&p);
 
-        assert_eq!(1, program.statements.len());
+        let statements = if let Program{statements, ..} = program {
+            statements
+        } else {
+            panic!("program is not Program");
+        };
+        assert_eq!(1, statements.len());
 
-        let stmt = program.statements.get(0);
+        let stmt = statements.get(0);
         let expression = if let Some(ExpressionStatement{expression, ..}) = stmt {
             expression
         } else {
@@ -579,9 +596,14 @@ mod tests {
         let program = p.parse_program();
         check_parse_errors(&p);
 
-        assert_eq!(1, program.statements.len());
+        let statements = if let Program{statements, ..} = program {
+            statements
+        } else {
+            panic!("program is not Program");
+        };
+        assert_eq!(1, statements.len());
 
-        let stmt = program.statements.get(0);
+        let stmt = statements.get(0);
         let expression = if let Some(ExpressionStatement{expression, ..}) = stmt {
             expression
         } else {
@@ -614,11 +636,16 @@ mod tests {
             let program = p.parse_program();
             check_parse_errors(&p);
 
-            if program.statements.len() != 1 {
+            let statements = if let Program{statements, ..} = program {
+                statements
+            } else {
+                panic!("program is not Program");
+            };
+            if statements.len() != 1 {
                 panic!("program.statements does not contain {} statements. got={}",
-                        1, program.statements.len());
+                        1, statements.len());
             }
-            let stmt = program.statements.get(0);
+            let stmt = statements.get(0);
             let expression = if let Some(ExpressionStatement{expression, ..}) = stmt {
                 expression
             } else {
@@ -652,11 +679,16 @@ mod tests {
             let program = p.parse_program();
             check_parse_errors(&p);
 
-            if program.statements.len() != 1 {
-                panic!("{}: program.statements does not contain {} statements. got={}",
-                        input, 1, program.statements.len());
+            let statements = if let Program{statements, ..} = program {
+                statements
+            } else {
+                panic!("program is not Program");
+            };
+            if statements.len() != 1 {
+                panic!("program.statements does not contain {} statements. got={}",
+                        1, statements.len());
             }
-            let stmt = program.statements.get(0);
+            let stmt = statements.get(0);
             let expression = if let Some(ExpressionStatement{expression, ..}) = stmt {
                 expression
             } else {
@@ -685,11 +717,16 @@ mod tests {
             let program = p.parse_program();
             check_parse_errors(&p);
 
-            if program.statements.len() != 1 {
-                panic!("{}: program.statements does not contain {} statements. got={}",
-                        input, 1, program.statements.len());
+            let statements = if let Program{statements, ..} = program {
+                statements
+            } else {
+                panic!("program is not Program");
+            };
+            if statements.len() != 1 {
+                panic!("program.statements does not contain {} statements. got={}",
+                        1, statements.len());
             }
-            let stmt = program.statements.get(0);
+            let stmt = statements.get(0);
             let expression = if let Some(ExpressionStatement{expression, ..}) = stmt {
                 expression
             } else {
@@ -786,11 +823,16 @@ mod tests {
             let program = p.parse_program();
             check_parse_errors(&p);
 
-            if program.statements.len() != 1 {
-                panic!("{}: program.statements does not contain {} statements. got={}",
-                        input, 1, program.statements.len());
+            let statements = if let Program{statements, ..} = program {
+                statements
+            } else {
+                panic!("program is not Program");
+            };
+            if statements.len() != 1 {
+                panic!("program.statements does not contain {} statements. got={}",
+                        1, statements.len());
             }
-            let stmt = program.statements.get(0);
+            let stmt = statements.get(0);
             let expression = if let Some(ExpressionStatement{expression, ..}) = stmt {
                 expression
             } else {
@@ -819,9 +861,14 @@ mod tests {
         let program = p.parse_program();
         check_parse_errors(&p);
 
-        assert_eq!(1, program.statements.len());
+        let statements = if let Program{statements, ..} = program {
+            statements
+        } else {
+            panic!("program is not Program");
+        };
+        assert_eq!(1, statements.len());
 
-        let stmt = program.statements.get(0);
+        let stmt = statements.get(0);
         let expression = if let Some(ExpressionStatement{expression, ..}) = stmt {
             expression
         } else {
@@ -871,9 +918,14 @@ mod tests {
         let program = p.parse_program();
         check_parse_errors(&p);
 
-        assert_eq!(1, program.statements.len());
+        let statements = if let Program{statements, ..} = program {
+            statements
+        } else {
+            panic!("program is not Program");
+        };
+        assert_eq!(1, statements.len());
 
-        let stmt = program.statements.get(0);
+        let stmt = statements.get(0);
         let expression = if let Some(ExpressionStatement{expression, ..}) = stmt {
             expression
         } else {
@@ -925,7 +977,13 @@ mod tests {
             let program = p.parse_program();
             check_parse_errors(&p);
 
-            let stmt = program.statements.get(0);
+            let statements = if let Program{statements, ..} = program {
+                statements
+            } else {
+                panic!("program is not Program");
+            };
+            assert_eq!(1, statements.len());
+            let stmt = statements.get(0);
             let expression = if let Some(ExpressionStatement{expression, ..}) = stmt {
                 expression
             } else {
@@ -952,9 +1010,13 @@ mod tests {
         let program = p.parse_program();
         check_parse_errors(&p);
 
-        assert_eq!(1, program.statements.len());
-
-        let stmt = program.statements.get(0);
+        let statements = if let Program{statements, ..} = program {
+            statements
+        } else {
+            panic!("program is not Program");
+        };
+        assert_eq!(1, statements.len());
+        let stmt = statements.get(0);
         let expression = if let Some(ExpressionStatement{expression, ..}) = stmt {
             expression
         } else {
