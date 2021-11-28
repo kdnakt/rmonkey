@@ -24,7 +24,7 @@ pub fn eval(node: AstNode) -> Option<Object> {
 
 pub fn eval_expression(expression: Option<ExpressionNode>) -> Option<Object> {
     match expression {
-        Some(IntegerLiteral{value, ..}) => None,
+        Some(IntegerLiteral{value, ..}) => Some(Object::Integer{ value }),
         Some(Boolean{value, ..}) => native_bool_to_boolean_object(value),
         Some(PrefixExpression{right, operator, token, ..}) => {
             let right = eval_expression(Some(right.unwrap()));
@@ -45,11 +45,11 @@ pub fn eval_statements(statements: Vec<StatementNode>) -> Option<Object> {
 }
 
 fn native_bool_to_boolean_object(b: bool) -> Option<Object> {
-    if b {
-        Some(TRUE)
+    Some(if b {
+        TRUE
     } else {
-        Some(FALSE)
-    }
+        FALSE
+    })
 }
 
 fn eval_prefix_expression(op: String, right: Option<Object>) -> Option<Object> {
@@ -101,6 +101,17 @@ mod tests {
         }
     }
 
+    #[test]
+    fn it_eval_integer_expression() {
+        for &(input, expected) in [
+            ("5", 5),
+            ("10", 10),
+        ].iter() {
+            let evaluated = test_eval(input.to_string());
+            test_integer_object(evaluated, expected);
+        }
+    }
+
     fn test_eval(input: String) -> Option<Object> {
         let l = Lexer::new(input);
         let mut p = Parser::new(l);
@@ -116,4 +127,14 @@ mod tests {
         };
         assert_eq!(expected, value);
     }
+
+    fn test_integer_object(evaluated: Option<Object>, expected: i64) {
+        let value = if let Some(Integer{value, ..}) = evaluated {
+            value
+        } else {
+            panic!("object is not Integer. got={:?}", evaluated);
+        };
+        assert_eq!(expected, value);
+    }
+
 }
