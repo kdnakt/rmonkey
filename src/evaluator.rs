@@ -55,6 +55,7 @@ fn native_bool_to_boolean_object(b: bool) -> Option<Object> {
 fn eval_prefix_expression(op: String, right: Option<Object>) -> Option<Object> {
     match op.as_ref() {
         "!" => eval_bang_operator_expression(right),
+        "-" => eval_minus_prefix_operator_expression(right),
         _ => Some(NULL),
     }
 }
@@ -66,6 +67,14 @@ fn eval_bang_operator_expression(right: Option<Object>) -> Option<Object> {
         Some(NULL) => Some(TRUE),
         _ => Some(FALSE),
     }
+}
+
+fn eval_minus_prefix_operator_expression(right: Option<Object>) -> Option<Object> {
+    Some(if let Some(Object::Integer{value, ..}) = right {
+        Object::Integer{ value: -value }
+    } else {
+        NULL
+    })
 }
 
 #[cfg(test)]
@@ -106,6 +115,8 @@ mod tests {
         for &(input, expected) in [
             ("5", 5),
             ("10", 10),
+            ("-5", -5),
+            ("-10", -10),
         ].iter() {
             let evaluated = test_eval(input.to_string());
             test_integer_object(evaluated, expected);
