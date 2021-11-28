@@ -10,6 +10,7 @@ pub enum ObjectType {
     NullObj,
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum Object {
     Integer {
         value: i64,
