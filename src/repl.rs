@@ -6,6 +6,7 @@ use crate::{
     lexer::Lexer,
     parser::Parser,
     ast::Node,
+    evaluator::eval,
 };
 
 pub fn start() {
@@ -21,7 +22,10 @@ pub fn start() {
             print_parse_errors(&p.errors);
             continue;
         }
-        println!("{}", program.to_string());
+
+        if let Some(evaluated) = eval(program) {
+            println!("{}", evaluated.inspect());
+        }
     }
 }
 

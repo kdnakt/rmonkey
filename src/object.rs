@@ -30,7 +30,7 @@ impl Object {
         }
     }
 
-    fn inspect(&self) -> String {
+    pub fn inspect(&self) -> String {
         match self {
             Integer{value, ..} => format!("{}", value),
             Boolean{value, ..} => format!("{}", value),
