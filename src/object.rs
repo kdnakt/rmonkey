@@ -4,6 +4,7 @@ use crate::{
     object::Object::*,
 };
 
+#[derive(PartialEq)]
 pub enum ObjectType {
     IntegerObj,
     BooleanObj,
@@ -22,7 +23,7 @@ pub enum Object {
 }
 
 impl Object {
-    fn typ(&self) -> ObjectType {
+    pub fn typ(&self) -> ObjectType {
         match self {
             Integer{..} => IntegerObj,
             Boolean{..} => BooleanObj,

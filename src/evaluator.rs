@@ -5,6 +5,7 @@ use crate::{
     ast::StatementNode::*,
     ast::ExpressionNode::*,
     object::Object,
+    object::ObjectType::*,
 };
 
 const NULL: Object = Object::Null;
@@ -26,9 +27,14 @@ pub fn eval_expression(expression: Option<ExpressionNode>) -> Option<Object> {
     match expression {
         Some(IntegerLiteral{value, ..}) => Some(Object::Integer{ value }),
         Some(Boolean{value, ..}) => native_bool_to_boolean_object(value),
-        Some(PrefixExpression{right, operator, token, ..}) => {
+        Some(PrefixExpression{right, operator, ..}) => {
             let right = eval_expression(Some(right.unwrap()));
             eval_prefix_expression(operator, right)
+        },
+        Some(InfixExpression{left, right, operator, ..}) => {
+            let left = eval_expression(Some(left.unwrap()));
+            let right = eval_expression(Some(right.unwrap()));
+            eval_infix_expression(operator, left, right)
         },
         _ => None,
     }
@@ -57,6 +63,28 @@ fn eval_prefix_expression(op: String, right: Option<Object>) -> Option<Object> {
         "!" => eval_bang_operator_expression(right),
         "-" => eval_minus_prefix_operator_expression(right),
         _ => Some(NULL),
+    }
+}
+
+fn eval_infix_expression(op: String, left: Option<Object>, right: Option<Object>) -> Option<Object> {
+    if left.as_ref().unwrap_or(&NULL).typ() == IntegerObj && right.as_ref().unwrap_or(&NULL).typ() == IntegerObj {
+        eval_integer_infix_expression(op, left, right)
+    } else {
+        Some(NULL)
+    }
+}
+
+fn eval_integer_infix_expression(op: String, left: Option<Object>, right: Option<Object>) -> Option<Object> {
+    let left_val = if let Some(Object::Integer{value, ..}) = left { value }
+        else { panic!("left is not Object::Integer"); };
+    let right_val = if let Some(Object::Integer{value, ..}) = right { value }
+        else { panic!("right is not Object::Integer"); };
+    match op.as_ref() {
+        "<" => native_bool_to_boolean_object(left_val < right_val),
+        ">" => native_bool_to_boolean_object(left_val > right_val),
+        "==" => native_bool_to_boolean_object(left_val == right_val),
+        "!=" => native_bool_to_boolean_object(left_val != right_val),
+        _ => Some(NULL)
     }
 }
 
@@ -104,6 +132,10 @@ mod tests {
         for &(input, expected) in [
             ("true", true),
             ("false", false),
+            ("1 < 2", true),
+            ("1 > 2", false),
+            ("1 == 1", true),
+            ("1 != 1", false),
         ].iter() {
             let evaluated = test_eval(input.to_string());
             test_boolean_object(evaluated, expected);
