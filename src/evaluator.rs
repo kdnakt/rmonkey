@@ -80,11 +80,15 @@ fn eval_integer_infix_expression(op: String, left: Option<Object>, right: Option
     let right_val = if let Some(Object::Integer{value, ..}) = right { value }
         else { panic!("right is not Object::Integer"); };
     match op.as_ref() {
+        "+" => Some(Object::Integer{value: left_val + right_val}),
+        "-" => Some(Object::Integer{value: left_val - right_val}),
+        "*" => Some(Object::Integer{value: left_val * right_val}),
+        "/" => Some(Object::Integer{value: left_val / right_val}),
         "<" => native_bool_to_boolean_object(left_val < right_val),
         ">" => native_bool_to_boolean_object(left_val > right_val),
         "==" => native_bool_to_boolean_object(left_val == right_val),
         "!=" => native_bool_to_boolean_object(left_val != right_val),
-        _ => Some(NULL)
+        _ => Some(NULL),
     }
 }
 
@@ -149,6 +153,9 @@ mod tests {
             ("10", 10),
             ("-5", -5),
             ("-10", -10),
+            ("5 + 5 + 5 + 5 - 10", 10),
+            ("2 * 2", 4),
+            ("50 / 2 * 2 + 10", 60),
         ].iter() {
             let evaluated = test_eval(input.to_string());
             test_integer_object(evaluated, expected);
