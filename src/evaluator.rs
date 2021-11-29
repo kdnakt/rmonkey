@@ -70,7 +70,13 @@ fn eval_infix_expression(op: String, left: Option<Object>, right: Option<Object>
     if left.as_ref().unwrap_or(&NULL).typ() == IntegerObj && right.as_ref().unwrap_or(&NULL).typ() == IntegerObj {
         eval_integer_infix_expression(op, left, right)
     } else {
-        Some(NULL)
+        let left = left.as_ref().unwrap_or(&NULL);
+        let right = right.as_ref().unwrap_or(&NULL);
+        match op.as_ref() {
+            "==" => native_bool_to_boolean_object(left == right),
+            "!=" => native_bool_to_boolean_object(left != right),
+            _ => Some(NULL),
+        }
     }
 }
 
@@ -140,6 +146,10 @@ mod tests {
             ("1 > 2", false),
             ("1 == 1", true),
             ("1 != 1", false),
+            ("true == true", true),
+            ("false == false", true),
+            ("true == false", false),
+            ("true != false", true),
         ].iter() {
             let evaluated = test_eval(input.to_string());
             test_boolean_object(evaluated, expected);
