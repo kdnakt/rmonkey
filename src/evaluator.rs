@@ -14,10 +14,14 @@ const FALSE: Object = Object::Boolean{value: false};
 
 pub fn eval(node: AstNode) -> Option<Object> {
     match node {
-        Program{statements, ..} => eval_statements(statements),
+        Program{statements, ..} => eval_program(statements),
         Statement{node, ..} => match node {
             ExpressionStatement{expression, ..} => eval_expression(expression),
             BlockStatement{statements, ..} => eval_statements(statements),
+            ReturnStatement{return_value, ..} => {
+                let value = eval_expression(return_value);
+                Some(Object::ReturnValue{ value: Box::new(value.unwrap()) })
+            }
             _ => None,
         }
         _ => None,
@@ -56,12 +60,31 @@ pub fn eval_expression(expression: Option<ExpressionNode>) -> Option<Object> {
     }
 }
 
+pub fn eval_program(statements: Vec<StatementNode>) -> Option<Object> {
+    let mut result: Option<Object> = None;
+    for s in statements {
+        result = eval(Statement{
+            node: s,
+        });
+        if let Some(Object::ReturnValue{value, ..}) = result {
+            return Some(*value)
+        }
+    }
+    result
+}
+
 pub fn eval_statements(statements: Vec<StatementNode>) -> Option<Object> {
     let mut result: Option<Object> = None;
     for s in statements {
         result = eval(Statement{
             node: s,
         });
+        if let Some(o) = &result {
+            match o.typ() {
+                ReturnValueObj => return result,
+                _ => ()
+            }
+        }
     }
     result
 }
@@ -214,6 +237,27 @@ mod tests {
                 Some(i) => test_integer_object(evaluated, i),
                 None => test_null_object(evaluated),
             }
+        }
+    }
+
+    #[test]
+    fn it_eval_return_statement() {
+        for &(input, expected) in [
+            ("return 10;", 10),
+            ("return 10; 9;", 10),
+            ("return 2 * 5; 9;", 10),
+            ("9; return 2 * 5;", 10),
+            ("
+                if (10 > 1) {
+                    if (10 > 1) {
+                        return 10;
+                    }
+                    return 1;
+                }
+            ", 10),
+        ].iter() {
+            let evaluated = test_eval(input.to_string());
+            test_integer_object(evaluated, expected);
         }
     }
 

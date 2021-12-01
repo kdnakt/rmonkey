@@ -9,6 +9,7 @@ pub enum ObjectType {
     IntegerObj,
     BooleanObj,
     NullObj,
+    ReturnValueObj,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -20,6 +21,9 @@ pub enum Object {
         value: bool,
     },
     Null,
+    ReturnValue {
+        value: Box<Object>,
+    }
 }
 
 impl Object {
@@ -28,6 +32,7 @@ impl Object {
             Integer{..} => IntegerObj,
             Boolean{..} => BooleanObj,
             Null => NullObj,
+            ReturnValue{..} => ReturnValueObj,
         }
     }
 
@@ -35,7 +40,8 @@ impl Object {
         match self {
             Integer{value, ..} => format!("{}", value),
             Boolean{value, ..} => format!("{}", value),
-            Null => "null".to_string()
+            Null => "null".to_string(),
+            ReturnValue{value, ..} => format!("{}", value.inspect()),
         }
     }
 }
