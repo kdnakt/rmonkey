@@ -17,6 +17,7 @@ pub fn eval(node: AstNode) -> Option<Object> {
         Program{statements, ..} => eval_statements(statements),
         Statement{node, ..} => match node {
             ExpressionStatement{expression, ..} => eval_expression(expression),
+            BlockStatement{statements, ..} => eval_statements(statements),
             _ => None,
         }
         _ => None,
@@ -35,6 +36,21 @@ pub fn eval_expression(expression: Option<ExpressionNode>) -> Option<Object> {
             let left = eval_expression(Some(left.unwrap()));
             let right = eval_expression(Some(right.unwrap()));
             eval_infix_expression(operator, left, right)
+        },
+        Some(IfExpression{condition, consequence, alternative, ..}) => {
+            let cond = eval_expression(Some(condition.unwrap()));
+            if is_truthy(cond) {
+                eval(Statement{
+                    node: *consequence
+                })
+            } else {
+                match alternative.as_ref() {
+                    Some(_) => eval(Statement{
+                        node: alternative.unwrap()
+                    }),
+                    None => Some(NULL),
+                }
+            }
         },
         _ => None,
     }
@@ -115,9 +131,19 @@ fn eval_minus_prefix_operator_expression(right: Option<Object>) -> Option<Object
     })
 }
 
+fn is_truthy(obj: Option<Object>) -> bool {
+    match obj {
+        Some(NULL) => false,
+        Some(TRUE) => true,
+        Some(FALSE) => false,
+        _ => true,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::eval;
+    use super::NULL;
     use crate::object::Object;
     use crate::object::Object::*;
     use crate::lexer::*;
@@ -172,6 +198,25 @@ mod tests {
         }
     }
 
+    #[test]
+    fn it_eval_if_else_expression() {
+        for &(input, expected) in [
+            ("if (true) { 10 }", Some(10)),
+            ("if (false) { 10 }", None),
+            ("if (1) { 10 }", Some(10)),
+            ("if (1 < 2) { 10 }", Some(10)),
+            ("if (1 > 2) { 10 }", None),
+            ("if (1 > 2) { 10 } else { 20 }", Some(20)),
+            ("if (1 < 2) { 10 } else { 20 }", Some(10)),
+        ].iter() {
+            let evaluated = test_eval(input.to_string());
+            match expected {
+                Some(i) => test_integer_object(evaluated, i),
+                None => test_null_object(evaluated),
+            }
+        }
+    }
+
     fn test_eval(input: String) -> Option<Object> {
         let l = Lexer::new(input);
         let mut p = Parser::new(l);
@@ -195,6 +240,11 @@ mod tests {
             panic!("object is not Integer. got={:?}", evaluated);
         };
         assert_eq!(expected, value);
+    }
+
+    fn test_null_object(evaluated: Option<Object>) {
+        let obj = evaluated.unwrap();
+        assert_eq!(NULL, obj);
     }
 
 }
