@@ -66,8 +66,10 @@ pub fn eval_program(statements: Vec<StatementNode>) -> Option<Object> {
         result = eval(Statement{
             node: s,
         });
-        if let Some(Object::ReturnValue{value, ..}) = result {
-            return Some(*value)
+        match result {
+            Some(Object::ReturnValue{value, ..}) => return Some(*value),
+            Some(Object::Error{..}) => return result,
+            _ => (),
         }
     }
     result
@@ -82,6 +84,7 @@ pub fn eval_statements(statements: Vec<StatementNode>) -> Option<Object> {
         if let Some(o) = &result {
             match o.typ() {
                 ReturnValueObj => return result,
+                ErrorObj => return result,
                 _ => ()
             }
         }
@@ -114,7 +117,13 @@ fn eval_infix_expression(op: String, left: Option<Object>, right: Option<Object>
         match op.as_ref() {
             "==" => native_bool_to_boolean_object(left == right),
             "!=" => native_bool_to_boolean_object(left != right),
-            _ => Some(NULL),
+            _ => {
+                if left.typ() != right.typ() {
+                    new_error(format!("type mismatch: {:?} {} {:?}", left.typ(), op, right.typ()))
+                } else {
+                    new_error(format!("unknown operator: {:?} {} {:?}", left.typ(), op, right.typ()))
+                }
+            },
         }
     }
 }
@@ -133,7 +142,7 @@ fn eval_integer_infix_expression(op: String, left: Option<Object>, right: Option
         ">" => native_bool_to_boolean_object(left_val > right_val),
         "==" => native_bool_to_boolean_object(left_val == right_val),
         "!=" => native_bool_to_boolean_object(left_val != right_val),
-        _ => Some(NULL),
+        _ => new_error(format!("unknown operator: {:?} {} {:?}", left.unwrap().typ(), op, right.unwrap().typ())),
     }
 }
 
@@ -147,11 +156,11 @@ fn eval_bang_operator_expression(right: Option<Object>) -> Option<Object> {
 }
 
 fn eval_minus_prefix_operator_expression(right: Option<Object>) -> Option<Object> {
-    Some(if let Some(Object::Integer{value, ..}) = right {
-        Object::Integer{ value: -value }
+    if let Some(Object::Integer{value, ..}) = right {
+        Some(Object::Integer{ value: -value })
     } else {
-        NULL
-    })
+        new_error(format!("unknown operator: -{:?}", right.unwrap().typ()))
+    }
 }
 
 fn is_truthy(obj: Option<Object>) -> bool {
@@ -161,6 +170,10 @@ fn is_truthy(obj: Option<Object>) -> bool {
         Some(FALSE) => false,
         _ => true,
     }
+}
+
+fn new_error(message: String) -> Option<Object> {
+    Some(Object::Error{ message })
 }
 
 #[cfg(test)]
@@ -258,6 +271,24 @@ mod tests {
         ].iter() {
             let evaluated = test_eval(input.to_string());
             test_integer_object(evaluated, expected);
+        }
+    }
+
+    #[test]
+    fn it_eval_error_handling() {
+        for &(input, expected) in [
+            ("5 + true;", "type mismatch: IntegerObj + BooleanObj"),
+            ("5 + true; 5;", "type mismatch: IntegerObj + BooleanObj"),
+            ("-true;", "unknown operator: -BooleanObj"),
+            ("false + true;", "unknown operator: BooleanObj + BooleanObj"),
+        ].iter() {
+            let evaluated = test_eval(input.to_string());
+            let msg = if let Some(Error{message, ..}) = evaluated {
+                message
+            } else {
+                panic!("no error object returned. got={:?}", evaluated);
+            };
+            assert_eq!(expected, msg);
         }
     }
 

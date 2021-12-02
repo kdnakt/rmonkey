@@ -4,12 +4,13 @@ use crate::{
     object::Object::*,
 };
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub enum ObjectType {
     IntegerObj,
     BooleanObj,
     NullObj,
     ReturnValueObj,
+    ErrorObj,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -23,7 +24,10 @@ pub enum Object {
     Null,
     ReturnValue {
         value: Box<Object>,
-    }
+    },
+    Error {
+        message: String,
+    },
 }
 
 impl Object {
@@ -33,6 +37,7 @@ impl Object {
             Boolean{..} => BooleanObj,
             Null => NullObj,
             ReturnValue{..} => ReturnValueObj,
+            Error{..} => ErrorObj,
         }
     }
 
@@ -42,6 +47,7 @@ impl Object {
             Boolean{value, ..} => format!("{}", value),
             Null => "null".to_string(),
             ReturnValue{value, ..} => format!("{}", value.inspect()),
+            Error{message, ..} => format!("ERROR:{}", message),
         }
     }
 }
