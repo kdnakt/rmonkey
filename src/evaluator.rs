@@ -4,7 +4,7 @@ use crate::{
     ast::AstNode::*,
     ast::StatementNode::*,
     ast::ExpressionNode::*,
-    object::Object,
+    object::*,
     object::ObjectType::*,
 };
 
@@ -12,60 +12,71 @@ const NULL: Object = Object::Null;
 const TRUE: Object = Object::Boolean{value: true};
 const FALSE: Object = Object::Boolean{value: false};
 
-pub fn eval(node: AstNode) -> Option<Object> {
+pub fn eval(node: AstNode, env: &Environment) -> Option<Object> {
     match node {
-        Program{statements, ..} => eval_program(statements),
+        Program{statements, ..} => eval_program(statements, env),
         Statement{node, ..} => match node {
-            ExpressionStatement{expression, ..} => eval_expression(expression),
-            BlockStatement{statements, ..} => eval_statements(statements),
+            ExpressionStatement{expression, ..} => eval_expression(expression, env),
+            BlockStatement{statements, ..} => eval_statements(statements, env),
             ReturnStatement{return_value, ..} => {
-                let value = eval_expression(return_value);
+                let value = eval_expression(return_value, env);
                 Some(Object::ReturnValue{ value: Box::new(value.unwrap()) })
-            }
+            },
+            LetStatement{value, ..} => {
+                let val = eval_expression(value, env);
+                if is_error(&val) {
+                    val
+                } else {
+                    None
+                }
+            },
             _ => None,
         }
         _ => None,
     }
 }
 
-pub fn eval_expression(expression: Option<ExpressionNode>) -> Option<Object> {
+pub fn eval_expression(expression: Option<ExpressionNode>, env: &Environment) -> Option<Object> {
     match expression {
         Some(IntegerLiteral{value, ..}) => Some(Object::Integer{ value }),
         Some(Boolean{value, ..}) => native_bool_to_boolean_object(value),
         Some(PrefixExpression{right, operator, ..}) => {
-            let right = eval_expression(Some(right.unwrap()));
+            let right = eval_expression(Some(right.unwrap()), env);
             eval_prefix_expression(operator, right)
         },
         Some(InfixExpression{left, right, operator, ..}) => {
-            let left = eval_expression(Some(left.unwrap()));
-            let right = eval_expression(Some(right.unwrap()));
+            let left = eval_expression(Some(left.unwrap()), env);
+            let right = eval_expression(Some(right.unwrap()), env);
             eval_infix_expression(operator, left, right)
         },
         Some(IfExpression{condition, consequence, alternative, ..}) => {
-            let cond = eval_expression(Some(condition.unwrap()));
+            let cond = eval_expression(Some(condition.unwrap()), env);
             if is_truthy(cond) {
                 eval(Statement{
                     node: *consequence
-                })
+                }, env)
             } else {
                 match alternative.as_ref() {
                     Some(_) => eval(Statement{
                         node: alternative.unwrap()
-                    }),
+                    }, env),
                     None => Some(NULL),
                 }
             }
+        },
+        Some(IdentifierExpression{value, ..}) => {
+            new_error(format!("identifier not found: {}", value))
         },
         _ => None,
     }
 }
 
-pub fn eval_program(statements: Vec<StatementNode>) -> Option<Object> {
+pub fn eval_program(statements: Vec<StatementNode>, env: &Environment) -> Option<Object> {
     let mut result: Option<Object> = None;
     for s in statements {
         result = eval(Statement{
             node: s,
-        });
+        }, env);
         match result {
             Some(Object::ReturnValue{value, ..}) => return Some(*value),
             Some(Object::Error{..}) => return result,
@@ -75,12 +86,12 @@ pub fn eval_program(statements: Vec<StatementNode>) -> Option<Object> {
     result
 }
 
-pub fn eval_statements(statements: Vec<StatementNode>) -> Option<Object> {
+pub fn eval_statements(statements: Vec<StatementNode>, env: &Environment) -> Option<Object> {
     let mut result: Option<Object> = None;
     for s in statements {
         result = eval(Statement{
             node: s,
-        });
+        }, env);
         if let Some(o) = &result {
             match o.typ() {
                 ReturnValueObj => return result,
@@ -172,6 +183,13 @@ fn is_truthy(obj: Option<Object>) -> bool {
     }
 }
 
+fn is_error(obj: &Option<Object>) -> bool {
+    match obj {
+        Some(o) => o.typ() == ErrorObj,
+        _ => false,
+    }
+}
+
 fn new_error(message: String) -> Option<Object> {
     Some(Object::Error{ message })
 }
@@ -180,7 +198,7 @@ fn new_error(message: String) -> Option<Object> {
 mod tests {
     use super::eval;
     use super::NULL;
-    use crate::object::Object;
+    use crate::object::*;
     use crate::object::Object::*;
     use crate::lexer::*;
     use crate::parser::*;
@@ -281,6 +299,7 @@ mod tests {
             ("5 + true; 5;", "type mismatch: IntegerObj + BooleanObj"),
             ("-true;", "unknown operator: -BooleanObj"),
             ("false + true;", "unknown operator: BooleanObj + BooleanObj"),
+            ("foobar", "identifier not found: foobar"),
         ].iter() {
             let evaluated = test_eval(input.to_string());
             let msg = if let Some(Error{message, ..}) = evaluated {
@@ -296,7 +315,8 @@ mod tests {
         let l = Lexer::new(input);
         let mut p = Parser::new(l);
         let program = p.parse_program();
-        eval(program)
+        let env = new_environment();
+        eval(program, &env)
     }
 
     fn test_boolean_object(evaluated: Option<Object>, expected: bool) {

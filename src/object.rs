@@ -1,3 +1,8 @@
+// Std
+use std::{
+    collections::HashMap,
+};
+
 // Internal
 use crate::{
     object::ObjectType::*,
@@ -49,5 +54,24 @@ impl Object {
             ReturnValue{value, ..} => format!("{}", value.inspect()),
             Error{message, ..} => format!("ERROR:{}", message),
         }
+    }
+}
+
+pub fn new_environment() -> Environment {
+    let store = HashMap::new();
+    Environment { store }
+}
+
+pub struct Environment {
+    store: HashMap<String, Object>
+}
+
+impl Environment {
+    pub fn get(&self, name: String) -> Option<&Object> {
+        self.store.get(&name)
+    }
+
+    pub fn set(&mut self, name: String, val: Object) {
+        self.store.insert(name, val);
     }
 }

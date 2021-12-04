@@ -5,11 +5,12 @@ use std::io;
 use crate::{
     lexer::Lexer,
     parser::Parser,
-    ast::Node,
     evaluator::eval,
+    object::new_environment,
 };
 
 pub fn start() {
+    let env = new_environment();
     loop {
         println!(">> ");
         let mut line = String::new();
@@ -23,7 +24,7 @@ pub fn start() {
             continue;
         }
 
-        if let Some(evaluated) = eval(program) {
+        if let Some(evaluated) = eval(program, &env) {
             println!("{}", evaluated.inspect());
         }
     }
