@@ -22,22 +22,24 @@ unsafe fn print(msg: (String, usize)) {
     if !INITIALIZED {
         init();
     }
-    if IS_TRACE {
-        println!("{}{}", "\t".repeat(msg.1 - 1), msg.0);
-    }
+    println!("{}{}", "\t".repeat(msg.1 - 1), msg.0);
 }
 
 pub fn trace(msg: &str) -> (&str, usize) {
     unsafe {
-        LEVEL = LEVEL + 1;
-        print((format!("BEGIN {}", msg), LEVEL));
+        if IS_TRACE {
+            LEVEL = LEVEL + 1;
+            print((format!("BEGIN {}", msg), LEVEL));
+        }
         (msg, LEVEL)
     }
 }
 
 pub fn untrace(msg: (&str, usize)) {
     unsafe {
-        print((format!("END {}", msg.0), msg.1));
-        LEVEL = LEVEL - 1;
+        if IS_TRACE {
+            print((format!("END {}", msg.0), msg.1));
+            LEVEL = LEVEL - 1;
+        }
     }
 }
