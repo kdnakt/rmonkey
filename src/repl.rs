@@ -10,7 +10,7 @@ use crate::{
 };
 
 pub fn start() {
-    let env = new_environment();
+    let mut env = new_environment();
     loop {
         println!(">> ");
         let mut line = String::new();
@@ -24,7 +24,7 @@ pub fn start() {
             continue;
         }
 
-        if let Some(evaluated) = eval(program, &env) {
+        if let Some(evaluated) = eval(program, &mut env) {
             println!("{}", evaluated.inspect());
         }
     }

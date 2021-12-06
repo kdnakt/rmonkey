@@ -12,7 +12,7 @@ const NULL: Object = Object::Null;
 const TRUE: Object = Object::Boolean{value: true};
 const FALSE: Object = Object::Boolean{value: false};
 
-pub fn eval(node: AstNode, env: &Environment) -> Option<Object> {
+pub fn eval(node: AstNode, env: &mut Environment) -> Option<Object> {
     match node {
         Program{statements, ..} => eval_program(statements, env),
         Statement{node, ..} => match node {
@@ -22,11 +22,17 @@ pub fn eval(node: AstNode, env: &Environment) -> Option<Object> {
                 let value = eval_expression(return_value, env);
                 Some(Object::ReturnValue{ value: Box::new(value.unwrap()) })
             },
-            LetStatement{value, ..} => {
+            LetStatement{value, name, ..} => {
                 let val = eval_expression(value, env);
                 if is_error(&val) {
                     val
                 } else {
+                    match name {
+                        IdentifierExpression{value, ..} => {
+                            env.set(value, val.unwrap());
+                        },
+                        _ => ()
+                    }
                     None
                 }
             },
@@ -36,7 +42,7 @@ pub fn eval(node: AstNode, env: &Environment) -> Option<Object> {
     }
 }
 
-pub fn eval_expression(expression: Option<ExpressionNode>, env: &Environment) -> Option<Object> {
+pub fn eval_expression(expression: Option<ExpressionNode>, env: &mut Environment) -> Option<Object> {
     match expression {
         Some(IntegerLiteral{value, ..}) => Some(Object::Integer{ value }),
         Some(Boolean{value, ..}) => native_bool_to_boolean_object(value),
@@ -65,13 +71,19 @@ pub fn eval_expression(expression: Option<ExpressionNode>, env: &Environment) ->
             }
         },
         Some(IdentifierExpression{value, ..}) => {
-            new_error(format!("identifier not found: {}", value))
+            let val = env.get(value.to_string());
+            match val {
+                Some(&NULL) => Some(NULL),
+                Some(&Object::Integer{value, ..}) => Some(Object::Integer{ value }),
+                Some(&Object::Boolean{value, ..}) => Some(Object::Boolean{ value }),
+                _ => new_error(format!("identifier not found: {}", value))
+            }
         },
         _ => None,
     }
 }
 
-pub fn eval_program(statements: Vec<StatementNode>, env: &Environment) -> Option<Object> {
+pub fn eval_program(statements: Vec<StatementNode>, env: &mut Environment) -> Option<Object> {
     let mut result: Option<Object> = None;
     for s in statements {
         result = eval(Statement{
@@ -86,7 +98,7 @@ pub fn eval_program(statements: Vec<StatementNode>, env: &Environment) -> Option
     result
 }
 
-pub fn eval_statements(statements: Vec<StatementNode>, env: &Environment) -> Option<Object> {
+pub fn eval_statements(statements: Vec<StatementNode>, env: &mut Environment) -> Option<Object> {
     let mut result: Option<Object> = None;
     for s in statements {
         result = eval(Statement{
@@ -311,12 +323,25 @@ mod tests {
         }
     }
 
+    #[test]
+    fn it_eval_let_statements() {
+        for &(input, expected) in [
+            ("let a = 5; a;", 5),
+            ("let a = 5 * 5; a;", 25),
+            ("let a = 5; let b = a; b", 5),
+            ("let a = 5; let b = a; let c = a + b + 5; c;", 15),
+        ].iter() {
+            let evaluated = test_eval(input.to_string());
+            test_integer_object(evaluated, expected);
+        }
+    }
+
     fn test_eval(input: String) -> Option<Object> {
         let l = Lexer::new(input);
         let mut p = Parser::new(l);
         let program = p.parse_program();
-        let env = new_environment();
-        eval(program, &env)
+        let mut env = new_environment();
+        eval(program, &mut env)
     }
 
     fn test_boolean_object(evaluated: Option<Object>, expected: bool) {
