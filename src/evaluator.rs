@@ -48,16 +48,27 @@ pub fn eval_expression(expression: Option<ExpressionNode>, env: &mut Environment
         Some(Boolean{value, ..}) => native_bool_to_boolean_object(value),
         Some(PrefixExpression{right, operator, ..}) => {
             let right = eval_expression(Some(right.unwrap()), env);
+            if is_error(&right) {
+                return right;
+            }
             eval_prefix_expression(operator, right)
         },
         Some(InfixExpression{left, right, operator, ..}) => {
             let left = eval_expression(Some(left.unwrap()), env);
+            if is_error(&left) {
+                return left;
+            }
             let right = eval_expression(Some(right.unwrap()), env);
+            if is_error(&right) {
+                return right;
+            }
             eval_infix_expression(operator, left, right)
         },
         Some(IfExpression{condition, consequence, alternative, ..}) => {
             let cond = eval_expression(Some(condition.unwrap()), env);
-            if is_truthy(cond) {
+            if is_error(&cond) {
+                cond
+            } else if is_truthy(cond) {
                 eval(Statement{
                     node: *consequence
                 }, env)
@@ -312,6 +323,12 @@ mod tests {
             ("-true;", "unknown operator: -BooleanObj"),
             ("false + true;", "unknown operator: BooleanObj + BooleanObj"),
             ("foobar", "identifier not found: foobar"),
+            ("if (foobar) { 5 }", "identifier not found: foobar"),
+            ("foobar + 5", "identifier not found: foobar"),
+            ("5 + foobar", "identifier not found: foobar"),
+            ("!foobar", "identifier not found: foobar"),
+            ("let a = foobar;", "identifier not found: foobar"),
+            ("return 5 + true;", "type mismatch: IntegerObj + BooleanObj"),
         ].iter() {
             let evaluated = test_eval(input.to_string());
             let msg = if let Some(Error{message, ..}) = evaluated {
