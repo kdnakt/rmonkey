@@ -11,7 +11,7 @@ use crate::{
     token::TokenType::*,
 };
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Token {
     pub typ: TokenType,
     pub literal: String,
@@ -22,7 +22,7 @@ pub struct Token {
 //     pub token_ref: &'a Token,
 // }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum TokenType {
     ILLEGAL, // "ILLEGAL"
     EOF,     // "EOF"

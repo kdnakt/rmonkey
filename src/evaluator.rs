@@ -90,6 +90,8 @@ pub fn eval_expression(expression: Option<ExpressionNode>, env: &mut Environment
                 _ => new_error(format!("identifier not found: {}", value))
             }
         },
+        Some(FunctionLiteral{parameters, body, ..}) =>
+            Some(Object::Function{parameters, body, env: env.clone()}),
         _ => None,
     }
 }
@@ -225,6 +227,7 @@ mod tests {
     use crate::object::Object::*;
     use crate::lexer::*;
     use crate::parser::*;
+    use crate::ast::Node;
     #[test]
     fn it_evaluates_bang_operator() {
         for &(input, expected) in [
@@ -351,6 +354,20 @@ mod tests {
             let evaluated = test_eval(input.to_string());
             test_integer_object(evaluated, expected);
         }
+    }
+
+    #[test]
+    fn it_eval_function_object() {
+        let input = "fn(x) { x + 2;";
+        let evaluated = test_eval(input.to_string());
+        let (params, body) = if let Some(Function{parameters, body, ..}) = evaluated {
+            (parameters, body)
+        } else {
+            panic!("object is not Function");
+        };
+        assert_eq!(1, params.len());
+        assert_eq!("x", params.get(0).unwrap().to_string());
+        assert_eq!("(x + 2)", body.to_string())
     }
 
     fn test_eval(input: String) -> Option<Object> {

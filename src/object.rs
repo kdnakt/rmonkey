@@ -5,6 +5,7 @@ use std::{
 
 // Internal
 use crate::{
+    ast::*,
     object::ObjectType::*,
     object::Object::*,
 };
@@ -16,9 +17,10 @@ pub enum ObjectType {
     NullObj,
     ReturnValueObj,
     ErrorObj,
+    FunctionObj,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Object {
     Integer {
         value: i64,
@@ -33,6 +35,11 @@ pub enum Object {
     Error {
         message: String,
     },
+    Function {
+        parameters: Vec<ExpressionNode>, // Vec<IdentifierExpression>
+        body: Box<StatementNode>,
+        env: Environment,
+    },
 }
 
 impl Object {
@@ -43,6 +50,7 @@ impl Object {
             Null => NullObj,
             ReturnValue{..} => ReturnValueObj,
             Error{..} => ErrorObj,
+            Function{..} => FunctionObj,
         }
     }
 
@@ -53,6 +61,9 @@ impl Object {
             Null => "null".to_string(),
             ReturnValue{value, ..} => format!("{}", value.inspect()),
             Error{message, ..} => format!("ERROR:{}", message),
+            Function{parameters, body, ..} => {
+                "".to_string()
+            },
         }
     }
 }
@@ -62,6 +73,7 @@ pub fn new_environment() -> Environment {
     Environment { store }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Environment {
     store: HashMap<String, Object>
 }

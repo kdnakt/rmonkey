@@ -23,7 +23,7 @@ pub enum AstNode {
     },
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ExpressionNode {
     IdentifierExpression {
         token: Token,
@@ -66,7 +66,7 @@ pub enum ExpressionNode {
     },
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum StatementNode {
     LetStatement {
         token: Token,
