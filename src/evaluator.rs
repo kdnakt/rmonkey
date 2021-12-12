@@ -370,6 +370,20 @@ mod tests {
         assert_eq!("(x + 2)", body.to_string())
     }
 
+    #[test]
+    fn it_eval_function_application() {
+        for &(input, expected) in [
+            ("let identity = fn(x) { x; }; identity(5);",5),
+            ("let identity = fn(x) { return x; }; identity(5);",5),
+            ("let double = fn(x) { x * 2; }; double(5);",10),
+            ("let add = fn(x, y) { x + y; }; add(5, 5);",10),
+            ("fn(x) { x; }(5)",5),
+        ].iter() {
+            let evaluated = test_eval(input.to_string());
+            test_integer_object(evaluated, expected);
+        }
+    }
+
     fn test_eval(input: String) -> Option<Object> {
         let l = Lexer::new(input);
         let mut p = Parser::new(l);
